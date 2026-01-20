@@ -4,9 +4,29 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
-    // Read Form.io CSS from node_modules
-    const formioPath = join(process.cwd(), 'node_modules', 'formiojs', 'dist', 'formio.full.min.css')
-    const cssContent = await readFile(formioPath, 'utf-8')
+    // Try @formio/js first (used by @formio/react), fallback to formiojs
+    let formioPath = join(process.cwd(), 'node_modules', '@formio', 'js', 'dist', 'formio.full.min.css')
+    let formioDir = join(process.cwd(), 'node_modules', '@formio', 'js', 'dist')
+    
+    try {
+      await readFile(formioPath, 'utf-8')
+    } catch {
+      // Fallback to formiojs if @formio/js not found
+      formioPath = join(process.cwd(), 'node_modules', 'formiojs', 'dist', 'formio.full.min.css')
+      formioDir = join(process.cwd(), 'node_modules', 'formiojs', 'dist')
+    }
+    
+    let cssContent = await readFile(formioPath, 'utf-8')
+    
+    // Fix font paths - replace relative paths with absolute paths via API route
+    // Replace: fonts/bootstrap-icons.woff2?hash -> /api/formio-fonts/bootstrap-icons.woff2?hash
+    // Handle both with and without query strings
+    cssContent = cssContent.replace(
+      /url\(fonts\/([^?)]+)(\?[^)]*)?\)/g,
+      (match, fontFile, queryString) => {
+        return `url(/api/formio-fonts/${fontFile}${queryString || ''})`
+      }
+    )
     
     return new NextResponse(cssContent, {
       headers: {

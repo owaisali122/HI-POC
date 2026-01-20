@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@formio/js':
+        specifier: ^5.2.6
+        version: 5.2.6(@popperjs/core@2.11.8)
+      '@formio/react':
+        specifier: ^6.1.2
+        version: 6.1.2(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       '@payloadcms/db-postgres':
         specifier: 3.71.1
         version: 3.71.1(payload@3.71.1(graphql@16.12.0)(typescript@5.7.3))
@@ -837,8 +843,23 @@ packages:
   '@formio/bootstrap3@2.12.4-rc.1':
     resolution: {integrity: sha512-4B5rs+w9tAk5i+wbdw2/NrTxPqnDX7/W19tiTd9lfXnIGQmaj0ecMEVqDmOJg8pIlyU02g3c4ih6JnA/JVmUbA==}
 
+  '@formio/bootstrap@3.1.4':
+    resolution: {integrity: sha512-hcIsoLy55UzdDeZC59TPW5CycIRkr7wg7BMsFyWltRI8pQJs4d7vNPC4nGPddzqFnkQtm3Vf1Va4e0ETTIfXhA==}
+
   '@formio/choices.js@10.2.1':
     resolution: {integrity: sha512-NCE5u7jG3XGokJP16MyAbVSUptKu/mpJYAxd4PPIoLiO/l9Do5uoOQ0MgNb9qG9qABJiOX+qNRE8q8RybY/SwQ==}
+
+  '@formio/core@2.5.4':
+    resolution: {integrity: sha512-Q9tCMsT/uyDhVfPwaGU8mFaa5NQ8cImFBbskR5ZRQXylLl9i7pKMfpvL4YvVt+bOcHpLtAgcefpd3xgYOPdDKQ==}
+
+  '@formio/js@5.2.6':
+    resolution: {integrity: sha512-59LI0wwjTNcYIDz8AxzQnhAadIz5GkjwC8kgNMmVkLi+Ay1V4bjA/jrY9X78qDa78pPXwea/wB0YCRy+E/veuQ==}
+
+  '@formio/react@6.1.2':
+    resolution: {integrity: sha512-9cLc9BmqB1jupZtbGhIdg45os//wDw42Pxm846jphgY84aJPxUFSVLs5WwXBN2A5PNQDzInTy1xwgBsL9TtfeA==}
+    peerDependencies:
+      react: '>=17'
+      react-dom: '>=17'
 
   '@formio/semantic@2.6.1':
     resolution: {integrity: sha512-obp1BT5UnzD+uYBbqmnsTfO2hGxI2A2iR/cj3P5JUFLYSBpnr3TS2ShQ7Ee5GCRRtJPu0JnljuJj+YSKLCMuhg==}
@@ -1750,6 +1771,9 @@ packages:
     resolution: {integrity: sha512-LZ2NqIHFhvFwxG0qZeLL9DvdNAHPGCY5dIRwBhyYeU+LfLhcStE1ImjsuTG/WaVh3XysGaeLW8Rqq7cGkPCFvw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
+  '@ungap/structured-clone@1.3.0':
+    resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+
   '@unrs/resolver-binding-android-arm-eabi@1.11.1':
     resolution: {integrity: sha512-ppLRUgHVaGRWUx0R0Ut06Mjo9gBaBkg3v/8AxusGLhsIotbBLuRk51rAzqLC8gq6NyyAojEXglNjzf6R948DNw==}
     cpu: [arm]
@@ -1996,6 +2020,9 @@ packages:
   autocompleter@7.1.0:
     resolution: {integrity: sha512-uCToOnq7eAD/GJAteDbYuQ7ksDtrYWOy5CIAq43wh0dT+5frMpPlyD9tp+y5fz8KIcsP+zR2MjzoTAdW5aJESw==}
 
+  autocompleter@8.0.4:
+    resolution: {integrity: sha512-q334YswwucSBphN5djVkEt3beVhHotrCtPGNIXmyilw9UnXV9Cb+gNAZ2yhZSfiBSzP6rxHLLT2gpr57xgbcwQ==}
+
   autoprefixer@10.4.23:
     resolution: {integrity: sha512-YYTXSFulfwytnjAPlw8QHncHJmlvFKtczb8InXaAx9Q0LbfDnfEYDE55omerIJKihhmU61Ft+cAOSzQVaBUmeA==}
     engines: {node: ^10 || ^12 || >=14}
@@ -2122,6 +2149,9 @@ packages:
     resolution: {integrity: sha512-PAJdDJusoxnwm1VwW07VWwUN1sl7smmC3OKggvndJFadxxDRyFJBX/ggnu/KE4kQAB7a3Dp8f/YXC1FlUprWmA==}
     engines: {node: '>= 16'}
 
+  choices.js@11.1.0:
+    resolution: {integrity: sha512-mIt0uLhedHg2ea/K2PACrVpt391vRGHuOoctPAiHcyemezwzNMxj7jOzNEk8e7EbjLh0S0sspDkSCADOKz9kcw==}
+
   chokidar@3.6.0:
     resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
     engines: {node: '>= 8.10.0'}
@@ -2163,6 +2193,9 @@ packages:
 
   compare-versions@5.0.3:
     resolution: {integrity: sha512-4UZlZP8Z99MGEY+Ovg/uJxJuvoXuN4M6B3hKaiackiHrgzQFEe3diJi1mf1PNHbFujM7FvLrK2bpgIaImbtZ1A==}
+
+  compare-versions@6.1.1:
+    resolution: {integrity: sha512-4hm4VPpIecmlg59CHXnRDnqGplJFrbLG4aFEl5vl6cK1u76ws3LLvX7ikFnTDl5vo39sjWD6AaDPYodJp/NNHg==}
 
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
@@ -2258,6 +2291,9 @@ packages:
   dateformat@4.6.3:
     resolution: {integrity: sha512-2P0p0pFGzHS5EMnhdxQi7aJN+iMheud0UhG4dlE1DLAlvL8JHjJJTX/CSm4JXwV0Ka5nGk3zC5mcb5bUQUxxMA==}
 
+  dayjs@1.11.19:
+    resolution: {integrity: sha512-t5EcLVS6QPBNqM2z8fakk/NKel+Xzshgt8FFKAn+qwlD1pzZWxh0nVCrvFK7ZDb6XucZeF9z8C7CBWTRIVApAw==}
+
   debug@3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}
     peerDependencies:
@@ -2335,6 +2371,9 @@ packages:
 
   dom-set@1.1.1:
     resolution: {integrity: sha512-sUi2aSvRsK3Ixx++gwX9cnaWk9ZxGVFry8+HnTRVmDimybU5PaiI4wX0o00mVtjFKlQNZLmtGoPTLorYbN0+Rw==}
+
+  dompurify@3.2.4:
+    resolution: {integrity: sha512-ysFSFEDVduQpyhzAob/kkuJjf5zWkZD8/A9ywSp1byueyuCfHamrCBa14/Oc2iiB0e51B+NpxSl5gmzn+Ms/mg==}
 
   dompurify@3.2.7:
     resolution: {integrity: sha512-WhL/YuveyGXJaerVlMYGWhvQswa7myDG17P7Vu65EWC05o8vfeNbvNf4d/BOvH99+ZW+LlQsc1GDKMa1vNK6dw==}
@@ -2770,6 +2809,10 @@ packages:
 
   fuse.js@6.6.2:
     resolution: {integrity: sha512-cJaJkxCCxC8qIIcPBF9yGxY0W/tVZS3uEISDxhYIdtk8OL93pe+6Zj7LjCqVV4dzbqcriOZ+kQ/NE4RXZHsIGA==}
+    engines: {node: '>=10'}
+
+  fuse.js@7.1.0:
+    resolution: {integrity: sha512-trLf4SzuuUxfusZADLINj+dE8clK1frKdmqiJNb1Es75fmI5oY6X2mxLVUciLLjxqw/xr72Dhy+lER6dGd02FQ==}
     engines: {node: '>=10'}
 
   generator-function@2.0.1:
@@ -5085,11 +5128,79 @@ snapshots:
     dependencies:
       resize-observer-polyfill: 1.5.1
 
+  '@formio/bootstrap@3.1.4': {}
+
   '@formio/choices.js@10.2.1':
     dependencies:
       deepmerge: 4.3.1
       fuse.js: 6.6.2
       redux: 4.2.1
+
+  '@formio/core@2.5.4':
+    dependencies:
+      browser-cookies: 1.2.0
+      core-js: 3.47.0
+      dayjs: 1.11.19
+      dompurify: 3.2.4
+      eventemitter3: 5.0.1
+      fast-json-patch: 3.1.1
+      fetch-ponyfill: 7.1.0
+      inputmask: 5.0.9
+      json-logic-js: 2.0.5
+      lodash: 4.17.21
+      moment: 2.30.1
+    transitivePeerDependencies:
+      - encoding
+
+  '@formio/js@5.2.6(@popperjs/core@2.11.8)':
+    dependencies:
+      '@formio/bootstrap': 3.1.4
+      '@formio/core': 2.5.4
+      '@formio/text-mask-addons': 3.8.0-formio.4
+      '@formio/vanilla-text-mask': 5.1.1-formio.1
+      abortcontroller-polyfill: 1.7.8
+      autocompleter: 8.0.4
+      bootstrap: 5.3.8(@popperjs/core@2.11.8)
+      browser-cookies: 1.2.0
+      browser-md5-file: 1.1.1
+      choices.js: 11.1.0
+      compare-versions: 6.1.1
+      core-js: 3.47.0
+      dialog-polyfill: 0.5.6
+      dom-autoscroller: 2.3.4
+      dompurify: 3.2.7
+      downloadjs: 1.4.7
+      dragula: 3.7.3
+      eventemitter3: 5.0.1
+      fast-deep-equal: 3.1.3
+      fast-json-patch: 3.1.1
+      idb: 7.1.1
+      inputmask: 5.0.9
+      ismobilejs: 1.1.1
+      json-logic-js: 2.0.5
+      jstimezonedetect: 1.0.7
+      jwt-decode: 3.1.2
+      lodash: 4.17.21
+      moment: 2.30.1
+      moment-timezone: 0.5.48
+      quill: 2.0.3
+      signature_pad: 4.2.0
+      string-hash: 1.1.3
+      tippy.js: 6.3.7
+      uuid: 9.0.0
+      vanilla-picker: 2.12.3
+    transitivePeerDependencies:
+      - '@popperjs/core'
+      - encoding
+
+  '@formio/react@6.1.2(react-dom@19.2.1(react@19.2.1))(react@19.2.1)':
+    dependencies:
+      '@ungap/structured-clone': 1.3.0
+      core-js: 3.47.0
+      lodash: 4.17.21
+      prop-types: 15.8.1
+      react: 19.2.1
+      react-dom: 19.2.1(react@19.2.1)
 
   '@formio/semantic@2.6.1': {}
 
@@ -6100,6 +6211,8 @@ snapshots:
       '@typescript-eslint/types': 8.53.0
       eslint-visitor-keys: 4.2.1
 
+  '@ungap/structured-clone@1.3.0': {}
+
   '@unrs/resolver-binding-android-arm-eabi@1.11.1':
     optional: true
 
@@ -6347,6 +6460,8 @@ snapshots:
 
   autocompleter@7.1.0: {}
 
+  autocompleter@8.0.4: {}
+
   autoprefixer@10.4.23(postcss@8.5.6):
     dependencies:
       browserslist: 4.28.1
@@ -6467,6 +6582,10 @@ snapshots:
 
   check-error@2.1.3: {}
 
+  choices.js@11.1.0:
+    dependencies:
+      fuse.js: 7.1.0
+
   chokidar@3.6.0:
     dependencies:
       anymatch: 3.1.3
@@ -6510,6 +6629,8 @@ snapshots:
   commander@2.20.3: {}
 
   compare-versions@5.0.3: {}
+
+  compare-versions@6.1.1: {}
 
   concat-map@0.0.1: {}
 
@@ -6606,6 +6727,8 @@ snapshots:
 
   dateformat@4.6.3: {}
 
+  dayjs@1.11.19: {}
+
   debug@3.2.7:
     dependencies:
       ms: 2.1.3
@@ -6679,6 +6802,10 @@ snapshots:
       array-from: 2.1.1
       is-array: 1.0.1
       iselement: 1.1.4
+
+  dompurify@3.2.4:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
 
   dompurify@3.2.7:
     optionalDependencies:
@@ -7276,6 +7403,8 @@ snapshots:
   functions-have-names@1.2.3: {}
 
   fuse.js@6.6.2: {}
+
+  fuse.js@7.1.0: {}
 
   generator-function@2.0.1: {}
 

@@ -75,6 +75,13 @@ export const BootstrapProvider: React.FC<BootstrapProviderProps> = ({ children }
                     return trimmed
                   }
                   
+                  // Exclude generic .nav class from scoping - it conflicts with Payload CMS nav
+                  // and causes issues in Form.io properties. Only scope specific nav classes.
+                  if (trimmed === '.nav' || trimmed === 'nav') {
+                    // Skip scoping generic .nav - don't apply Bootstrap's .nav to Form.io
+                    return match // Return unchanged (no scoping)
+                  }
+                  
                   // For each selector, add scoping to all the necessary containers
                   // This ensures nav-tabs, card-header-tabs, nav-item, active, etc. all work
                   return `.bootstrap-scope ${trimmed}, .formio-modal ${trimmed}, .formio-dialog ${trimmed}, .formio-edit-form ${trimmed}, .formio-builder-dialog ${trimmed}, .formio-builder ${trimmed}, .formbuilder ${trimmed}`
@@ -89,15 +96,14 @@ export const BootstrapProvider: React.FC<BootstrapProviderProps> = ({ children }
             style.textContent = scopedCSS + `
               /* Additional scoped styles */
               .bootstrap-scope {
-                isolation: isolate;
-                contain: layout style paint;
+                /* Removed isolation to allow Form.io styles to work properly */
               }
               
               .formio-modal,
               .formio-dialog,
               .formio-edit-form,
               .formio-builder-dialog {
-                isolation: isolate;
+                /* Removed isolation to allow list styles to render */
               }
             `
             document.head.appendChild(style)
@@ -111,13 +117,17 @@ export const BootstrapProvider: React.FC<BootstrapProviderProps> = ({ children }
             return response.text()
           })
           .then(formioCssText => {
-            // Create Form.io CSS style tag (no scoping needed - Form.io CSS is already scoped)
+            // Check if global Form.io CSS is already loaded (from FormioCSSLoader)
+            const globalFormioStyle = document.getElementById('formio-css-global')
             const formioStyleId = 'form-builder-formio-css'
             const existingFormioStyle = document.getElementById(formioStyleId)
             
-            if (!existingFormioStyle) {
+            // Only add if global CSS isn't loaded and this instance hasn't loaded it
+            // IMPORTANT: Form.io CSS should NOT be scoped - it's designed to work globally
+            if (!globalFormioStyle && !existingFormioStyle) {
               const formioStyle = document.createElement('style')
               formioStyle.id = formioStyleId
+              // Form.io CSS should be loaded as-is without scoping
               formioStyle.textContent = formioCssText
               document.head.appendChild(formioStyle)
             }

@@ -1,0 +1,266 @@
+/* Form.io CSS is loaded via BootstrapProvider component */
+/* This file contains custom styling overrides for Form.io in Payload CMS */
+
+/* Prevent Payload CMS .nav styles from affecting Form.io components */
+.bootstrap-scope .nav,
+.formio-modal .nav,
+.formio-dialog .nav,
+.formio-edit-form .nav,
+.formio-builder-dialog .nav,
+.formio-builder .nav,
+.formbuilder .nav {
+  /* Reset Payload CMS nav styles for Form.io contexts */
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  flex-shrink: auto !important;
+  height: auto !important;
+  width: auto !important;
+  border-right: none !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  --nav-padding-inline-start: unset !important;
+  --nav-padding-inline-end: unset !important;
+  --nav-padding-block-start: unset !important;
+  --nav-padding-block-end: unset !important;
+}
+
+/* Fix UL/LI elements - ensure proper display and styling for Form.io */
+.bootstrap-scope,
+.formio-modal,
+.formio-dialog,
+.formio-edit-form,
+.formio-builder-dialog,
+.formio-builder,
+.formbuilder {
+  /* Fix UL elements - ensure they display properly */
+  ul {
+    display: block !important;
+    
+    /* Nav tabs specific styling - override default list styles */
+    &.nav-tabs {
+      display: flex !important;
+      flex-wrap: wrap;
+      padding-left: 0 !important;
+      margin-bottom: 0;
+      list-style: none !important;
+      border-bottom: 1px solid #dee2e6;
+      
+      li {
+        display: list-item !important;
+        margin-bottom: -1px;
+        
+        &.active {
+          a {
+            color: #495057 !important;
+            background-color: #fff !important;
+            border-color: #dee2e6 #dee2e6 #fff !important;
+          }
+        }
+        
+        a {
+          display: block !important;
+          padding: 0.5rem 1rem;
+          text-decoration: none;
+          border: 1px solid transparent;
+          border-top-left-radius: 0.25rem;
+          border-top-right-radius: 0.25rem;
+          cursor: pointer;
+          
+          &:hover {
+            border-color: #e9ecef #e9ecef #dee2e6;
+          }
+        }
+      }
+    }
+  }
+  
+  /* Fix LI elements - ensure they display as list items */
+  li {
+    display: list-item !important;
+  }
+}
+
+/* Custom Form.io styling for Payload CMS admin panel */
+.formio-builder,
+.formbuilder {
+  min-height: 600px;
+  
+  /* Ensure proper z-index for modals */
+  .formio-modal,
+  .formio-dialog,
+  .formio-edit-form,
+  .formio-builder-dialog {
+    z-index: 10000 !important;
+  }
+  
+  /* Additional fixes for Form.io component tabs */
+  .formio-component-tabs {
+    .nav-tabs {
+      display: flex !important;
+      flex-direction: row;
+      flex-wrap: wrap;
+      padding-left: 0 !important;
+      margin-bottom: 0;
+      list-style: none !important;
+      border-bottom: 1px solid #dee2e6;
+      
+      .nav-item {
+        display: list-item !important;
+        margin-bottom: -1px;
+        
+        .nav-link {
+          display: block !important;
+          padding: 0.5rem 1rem;
+          color: #007bff;
+          text-decoration: none;
+          background-color: transparent;
+          border: 1px solid transparent;
+          border-top-left-radius: 0.25rem;
+          border-top-right-radius: 0.25rem;
+          cursor: pointer;
+          
+          &:hover {
+            border-color: #e9ecef #e9ecef #dee2e6;
+          }
+          
+          &.active {
+            color: #495057 !important;
+            background-color: #fff !important;
+            border-color: #dee2e6 #dee2e6 #fff !important;
+          }
+        }
+      }
+    }
+    
+    .tab-content {
+      padding: 1rem;
+    }
+  }
+  
+  /* Style the builder components */
+  .formio-component {
+    border: 1px solid var(--theme-elevation-200);
+    border-radius: var(--border-radius-s);
+    padding: var(--base);
+    margin: calc(var(--base) / 2) 0;
+    background: var(--theme-elevation-50);
+    transition: all 0.2s ease;
+    
+    &:hover {
+      border-color: var(--theme-elevation-300);
+      background: var(--theme-elevation-100);
+    }
+  }
+  
+  /* Ensure buttons are visible */
+  button {
+    &.btn {
+      padding: var(--base) calc(var(--base) * 1.5);
+      border-radius: var(--border-radius-s);
+      font-weight: 500;
+      transition: all 0.2s ease;
+      
+      &.btn-primary {
+        background-color: var(--theme-success-500);
+        border-color: var(--theme-success-500);
+        color: white;
+        
+        &:hover {
+          background-color: var(--theme-success-600);
+          border-color: var(--theme-success-600);
+        }
+      }
+      
+      &.btn-secondary {
+        background-color: var(--theme-elevation-200);
+        border-color: var(--theme-elevation-200);
+        color: var(--theme-text);
+        
+        &:hover {
+          background-color: var(--theme-elevation-300);
+          border-color: var(--theme-elevation-300);
+        }
+      }
+      
+      &.btn-danger {
+        background-color: var(--theme-error-500);
+        border-color: var(--theme-error-500);
+        color: white;
+        
+        &:hover {
+          background-color: var(--theme-error-600);
+          border-color: var(--theme-error-600);
+        }
+      }
+    }
+  }
+  
+  /* Style input fields */
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="password"],
+  textarea,
+  select {
+    width: 100%;
+    padding: calc(var(--base) / 2) var(--base);
+    border: 1px solid var(--theme-elevation-200);
+    border-radius: var(--border-radius-s);
+    background: var(--theme-elevation-0);
+    color: var(--theme-text);
+    font-size: 14px;
+    
+    &:focus {
+      outline: none;
+      border-color: var(--theme-success-500);
+      box-shadow: 0 0 0 2px rgba(var(--theme-success-500-rgb), 0.1);
+    }
+  }
+  
+  /* Style tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    
+    th,
+    td {
+      padding: var(--base);
+      border: 1px solid var(--theme-elevation-200);
+      text-align: left;
+    }
+    
+    th {
+      background: var(--theme-elevation-100);
+      font-weight: 600;
+    }
+  }
+  
+  /* Ensure modals are properly styled */
+  .modal {
+    .modal-dialog {
+      max-width: 90%;
+      margin: 2rem auto;
+    }
+    
+    .modal-content {
+      border-radius: var(--border-radius-m);
+      border: 1px solid var(--theme-elevation-200);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .modal-header {
+      border-bottom: 1px solid var(--theme-elevation-200);
+      padding: var(--base) calc(var(--base) * 1.5);
+    }
+    
+    .modal-body {
+      padding: calc(var(--base) * 1.5);
+    }
+    
+    .modal-footer {
+      border-top: 1px solid var(--theme-elevation-200);
+      padding: var(--base) calc(var(--base) * 1.5);
+    }
+  }
+}

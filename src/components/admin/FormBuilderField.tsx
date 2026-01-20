@@ -1,11 +1,24 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useState, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { useField } from '@payloadcms/ui'
 import styles from './FormBuilderField.module.scss'
 import { BootstrapProvider } from './BootstrapProvider'
 
-// Form.io styles are now loaded by BootstrapProvider
+// Dynamically import FormBuilder from @formio/react with SSR disabled
+// Import directly from components to avoid pulling in SubmissionGrid and other components with dependency issues
+const FormBuilder = dynamic(
+  () => import('@formio/react/lib/components/FormBuilder').then((mod) => mod.FormBuilder),
+  {
+    ssr: false,
+    loading: () => (
+      <div className={styles.formBuilderLoading}>
+        <span>Loading Form Builder...</span>
+      </div>
+    ),
+  }
+)
 
 interface FormBuilderFieldProps {
   path: string
@@ -16,165 +29,115 @@ interface FormBuilderFieldProps {
   }
 }
 
-const DEFAULT_SCHEMA = {
+interface FormSchema {
+  display?: string
+  components: any[]
+  [key: string]: any
+}
+
+const DEFAULT_SCHEMA: FormSchema = {
   display: 'form',
   components: [],
 }
 
 export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
-  const { value, setValue } = useField<object>({ path })
-  const builderRef = useRef<HTMLDivElement>(null)
-  const builderInstanceRef = useRef<any>(null)
+  const { value, setValue } = useField<FormSchema>({ path })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const isInitializedRef = useRef(false)
+
+  // Get the initial schema from value or use default
+  // Type as any to match FormType from @formio/react
+  const initialSchema = useMemo<any>(() => {
+    if (
+      value &&
+      typeof value === 'object' &&
+      'components' in value &&
+      Array.isArray(value.components)
+    ) {
+      return value as any
+    }
+    return DEFAULT_SCHEMA
+  }, [value])
 
   // Set default value immediately if no value exists
   useEffect(() => {
-    if (!value && !isInitializedRef.current) {
+    if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) {
       setValue(DEFAULT_SCHEMA)
     }
   }, [value, setValue])
 
-
-  const initBuilder = useCallback(async () => {
-    if (!builderRef.current) return
-
-    try {
-      // Dynamically import Form.io to avoid SSR issues
-      const FormioModule = await import('formiojs')
-      const Formio = (FormioModule as any).default || FormioModule
-      const FormBuilder = Formio.FormBuilder
-
-      // Destroy existing instance if any
-      if (builderInstanceRef.current) {
-        try {
-          builderInstanceRef.current.destroy()
-        } catch (e) {
-          // Ignore destroy errors
-        }
+  // Handler for schema changes
+  const handleChange = useCallback(
+    (schema: any) => {
+      if (schema && typeof schema === 'object') {
+        console.log('FormBuilder onChange:', schema)
+        setValue(schema)
+        setIsLoading(false)
       }
+    },
+    [setValue]
+  )
 
-      // Clear the container
-      builderRef.current.innerHTML = ''
-
-      // Initialize the builder with current value or default schema
-      const initialSchema = value && typeof value === 'object' && Object.keys(value).length > 0
-        ? value
-        : DEFAULT_SCHEMA
-
-      // Create the builder instance
-      const builder = new FormBuilder(builderRef.current, initialSchema, {
-        builder: {
-          basic: {
-            default: true,
-            components: {
-              textfield: true,
-              textarea: true,
-              number: true,
-              password: true,
-              checkbox: true,
-              selectboxes: true,
-              select: true,
-              radio: true,
-              button: true,
-            },
+  // Builder options configuration
+  const builderOptions = useMemo(
+    () => ({
+      builder: {
+        basic: {
+          default: true,
+          components: {
+            textfield: true,
+            textarea: true,
+            number: true,
+            password: true,
+            checkbox: true,
+            selectboxes: true,
+            select: true,
+            radio: true,
+            button: true,
           },
-          advanced: {
-            default: true,
-            components: {
-              email: true,
-              url: true,
-              phoneNumber: true,
-              datetime: true,
-              day: true,
-              time: true,
-              currency: true,
-              signature: true,
-            },
-          },
-          layout: {
-            default: true,
-            components: {
-              htmlelement: true,
-              content: true,
-              columns: true,
-              fieldset: true,
-              panel: true,
-              well: true,
-            },
-          },
-          data: {
-            default: false,
-          },
-          premium: false,
         },
-      })
+        advanced: {
+          default: true,
+          components: {
+            email: true,
+            url: true,
+            phoneNumber: true,
+            datetime: true,
+            day: true,
+            time: true,
+            currency: true,
+            signature: true,
+          },
+        },
+        layout: {
+          default: true,
+          components: {
+            htmlelement: true,
+            content: true,
+            columns: true,
+            fieldset: true,
+            panel: true,
+            well: true,
+          },
+        },
+        data: {
+          default: false,
+        },
+        premium: false,
+      },
+    }),
+    []
+  )
 
-      // Wait for builder to be ready
-      await builder.ready
-
-      builderInstanceRef.current = builder
-      isInitializedRef.current = true
-
-      // Set the initial value to ensure it's saved
-      if (!value || Object.keys(value).length === 0) {
-        setValue(builder.schema)
-      }
-
-      // Listen for schema changes
-      builder.on('change', (schema: object) => {
-        if (schema && typeof schema === 'object') {
-          setValue(schema)
-        }
-      })
-
-      // Also listen for component add/remove events
-      builder.on('addComponent', () => {
-        setTimeout(() => {
-          if (builderInstanceRef.current?.schema) {
-            setValue(builderInstanceRef.current.schema)
-          }
-        }, 100)
-      })
-
-      builder.on('removeComponent', () => {
-        setTimeout(() => {
-          if (builderInstanceRef.current?.schema) {
-            setValue(builderInstanceRef.current.schema)
-          }
-        }, 100)
-      })
-
-      builder.on('updateComponent', () => {
-        setTimeout(() => {
-          if (builderInstanceRef.current?.schema) {
-            setValue(builderInstanceRef.current.schema)
-          }
-        }, 100)
-      })
-
-      setIsLoading(false)
-    } catch (err) {
-      console.error('Error initializing Form.io builder:', err)
-      setError('Failed to load form builder. Please refresh the page.')
-      setIsLoading(false)
-    }
-  }, []) // Remove value dependency to prevent re-initialization
-
+  // Handle component ready
   useEffect(() => {
-    initBuilder()
+    // Set loading to false after initial render
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+    }, 100)
 
-    return () => {
-      if (builderInstanceRef.current) {
-        try {
-          builderInstanceRef.current.destroy()
-        } catch (e) {
-          // Ignore destroy errors
-        }
-      }
-    }
-  }, [initBuilder])
+    return () => clearTimeout(timer)
+  }, [])
 
   if (error) {
     return (
@@ -196,10 +159,17 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
           </div>
         )}
 
-        <div
-          ref={builderRef}
-          className={`${styles.formBuilderContainer} ${isLoading ? styles.hidden : ''}`}
-        />
+        <div className={`${styles.formBuilderContainer} ${isLoading ? styles.hidden : ''}`}>
+          <FormBuilder
+            initialForm={initialSchema}
+            onChange={handleChange}
+            options={builderOptions}
+            onBuilderReady={(builder) => {
+              console.log('FormBuilder ready:', builder)
+              setIsLoading(false)
+            }}
+          />
+        </div>
       </div>
     </BootstrapProvider>
   )

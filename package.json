@@ -17,6 +17,8 @@
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts"
   },
   "dependencies": {
+    "@formio/js": "^5.2.6",
+    "@formio/react": "^6.1.2",
     "@payloadcms/db-postgres": "3.71.1",
     "@payloadcms/next": "3.71.1",
     "@payloadcms/richtext-lexical": "3.71.1",
