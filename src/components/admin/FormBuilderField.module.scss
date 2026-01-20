@@ -1,0 +1,97 @@
+/* FormBuilderField Component Styles */
+
+/* Wrapper Styles */
+.formBuilderWrapper {
+  margin: 16px 0;
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 8px;
+  overflow: hidden;
+
+  :global(.formio-builder) {
+    background: #ffffff;
+    min-height: 500px;
+  }
+
+  :global(.formbuilder) {
+    background: #ffffff;
+  }
+
+  :global(.builder-sidebar) {
+    background: #f8fafc;
+  }
+
+  :global(.formio-component) {
+    margin: 0;
+  }
+
+  :global(.drag-container) {
+    padding: 10px;
+  }
+
+  :global(.formio-component-textfield),
+  :global(.formio-component-textarea),
+  :global(.formio-component-email),
+  :global(.formio-component-number),
+  :global(.formio-component-password),
+  :global(.formio-component-select),
+  :global(.formio-component-radio),
+  :global(.formio-component-checkbox),
+  :global(.formio-component-button) {
+    padding: 8px;
+    margin: 4px 0;
+    border: 1px dashed #e2e8f0;
+    border-radius: 4px;
+  }
+
+  :global(.formio-component:hover) {
+    border-color: #3b82f6;
+  }
+}
+
+/* Error State */
+.formBuilderError {
+  padding: 20px;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+/* Loading State */
+.formBuilderLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 1rem;
+
+  &::before {
+    content: '';
+    width: 24px;
+    height: 24px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 12px;
+  }
+}
+
+/* Builder Container */
+.formBuilderContainer {
+  display: block;
+
+  &.hidden {
+    display: none;
+  }
+}
+
+/* Animations */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

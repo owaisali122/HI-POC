@@ -2,9 +2,10 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useField } from '@payloadcms/ui'
+import styles from './FormBuilderField.module.scss'
+import { BootstrapProvider } from './BootstrapProvider'
 
-// Import Form.io styles
-import 'formiojs/dist/formio.full.min.css'
+// Form.io styles are now loaded by BootstrapProvider
 
 interface FormBuilderFieldProps {
   path: string
@@ -34,6 +35,7 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
       setValue(DEFAULT_SCHEMA)
     }
   }, [value, setValue])
+
 
   const initBuilder = useCallback(async () => {
     if (!builderRef.current) return
@@ -176,96 +178,30 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
 
   if (error) {
     return (
-      <div className="form-builder-error" style={{ 
-        padding: '20px', 
-        color: '#dc2626',
-        background: '#fef2f2',
-        border: '1px solid #fecaca',
-        borderRadius: '8px',
-        margin: '16px 0'
-      }}>
+      <div className={styles.formBuilderError}>
         {error}
       </div>
     )
   }
 
   return (
-    <div className="form-builder-wrapper">
-      <style>{`
-        .form-builder-wrapper {
-          margin: 16px 0;
-          border: 1px solid var(--theme-elevation-150);
-          border-radius: 8px;
-          overflow: hidden;
-        }
-        .form-builder-wrapper .formio-builder {
-          background: #ffffff;
-          min-height: 500px;
-        }
-        .form-builder-wrapper .formbuilder {
-          background: #ffffff;
-        }
-        .form-builder-wrapper .builder-sidebar {
-          background: #f8fafc;
-        }
-        .form-builder-wrapper .formio-component {
-          margin: 0;
-        }
-        .form-builder-wrapper .drag-container {
-          padding: 10px;
-        }
-        .form-builder-wrapper .formio-component-textfield,
-        .form-builder-wrapper .formio-component-textarea,
-        .form-builder-wrapper .formio-component-email,
-        .form-builder-wrapper .formio-component-number,
-        .form-builder-wrapper .formio-component-password,
-        .form-builder-wrapper .formio-component-select,
-        .form-builder-wrapper .formio-component-radio,
-        .form-builder-wrapper .formio-component-checkbox,
-        .form-builder-wrapper .formio-component-button {
-          padding: 8px;
-          margin: 4px 0;
-          border: 1px dashed #e2e8f0;
-          border-radius: 4px;
-        }
-        .form-builder-wrapper .formio-component:hover {
-          border-color: #3b82f6;
-        }
-        .form-builder-loading {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 500px;
-          background: #f8fafc;
-          color: #64748b;
-          font-size: 1rem;
-        }
-        .form-builder-loading::before {
-          content: '';
-          width: 24px;
-          height: 24px;
-          border: 3px solid #e2e8f0;
-          border-top-color: #3b82f6;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin-right: 12px;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-
-      {isLoading && (
-        <div className="form-builder-loading">
-          <span>Loading Form Builder...</span>
-        </div>
-      )}
-
+    <BootstrapProvider>
       <div
-        ref={builderRef}
-        style={{ display: isLoading ? 'none' : 'block' }}
-      />
-    </div>
+        className={`formio-builder formbuilder ${styles.formBuilderWrapper}`}
+        data-form-builder-instance
+      >
+        {isLoading && (
+          <div className={styles.formBuilderLoading}>
+            <span>Loading Form Builder...</span>
+          </div>
+        )}
+
+        <div
+          ref={builderRef}
+          className={`${styles.formBuilderContainer} ${isLoading ? styles.hidden : ''}`}
+        />
+      </div>
+    </BootstrapProvider>
   )
 }
 
