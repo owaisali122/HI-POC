@@ -2,12 +2,16 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { NextRequest, NextResponse } from 'next/server'
 
+/**
+ * POST /api/forms/draft
+ * Save a draft submission
+ */
 export async function POST(request: NextRequest) {
   try {
     const payload = await getPayload({ config })
     const body = await request.json()
 
-    const { formId, formSlug, data } = body
+    const { formId, formSlug, data, currentTab } = body
 
     if ((!formId && !formSlug) || !data) {
       return NextResponse.json(
@@ -64,17 +68,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (form.status !== 'published') {
-      return NextResponse.json(
-        { error: 'Form is not available for submissions' },
-        { status: 400 }
-      )
-    }
-
     // Extract email from submission data if available
     let submitterEmail: string | undefined
     if (typeof data === 'object' && data !== null) {
-      // Look for common email field names
       const emailFields = ['email', 'Email', 'EMAIL', 'e-mail', 'emailAddress']
       for (const field of emailFields) {
         if (data[field] && typeof data[field] === 'string') {
@@ -115,17 +111,16 @@ export async function POST(request: NextRequest) {
       existingDraft = drafts.docs[0] || null
     }
 
-    // Create or update submission (mark as submitted)
+    // Create or update draft
+    // Use overrideAccess: true for API operations (we handle validation ourselves)
     let submission
     if (existingDraft) {
-      // Update existing draft to submitted
       submission = await payload.update({
         collection: 'form-submissions',
         id: existingDraft.id,
         data: {
           data: cleanData,
-          status: 'submitted',
-          submittedAt: new Date().toISOString(),
+          currentTab: currentTab || null,
           submitterEmail,
           metadata: {
             ipAddress: ipAddress.split(',')[0].trim(),
@@ -135,17 +130,17 @@ export async function POST(request: NextRequest) {
         overrideAccess: true,
       })
     } else {
-      // Create new submission as submitted
       submission = await payload.create({
         collection: 'form-submissions',
         data: {
           form: formIdNum,
           data: cleanData,
-          status: 'submitted',
+          status: 'draft',
+          currentTab: currentTab || null,
           submitterEmail,
           metadata: {
             ipAddress: ipAddress.split(',')[0].trim(),
-            userAgent: userAgent.substring(0, 500), // Limit length
+            userAgent: userAgent.substring(0, 500),
           },
         },
       })
@@ -154,13 +149,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       submissionId: submission.id,
-      message: 'Form submitted successfully',
+      message: 'Draft saved successfully',
     })
   } catch (error) {
-    console.error('Form submission error:', error)
+    console.error('Draft save error:', error)
     
     return NextResponse.json(
-      { error: 'Failed to submit form' },
+      { error: 'Failed to save draft' },
       { status: 500 }
     )
   }

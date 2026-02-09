@@ -215,6 +215,14 @@ export interface FormSubmission {
     | number
     | boolean
     | null;
+  /**
+   * Submission status - Draft allows saving partial data
+   */
+  status: 'draft' | 'submitted';
+  /**
+   * Current tab index or key for resuming form
+   */
+  currentTab?: string | null;
   submittedAt?: string | null;
   /**
    * Email of the person who submitted the form (if provided)
@@ -376,6 +384,8 @@ export interface FormsSelect<T extends boolean = true> {
 export interface FormSubmissionsSelect<T extends boolean = true> {
   form?: T;
   data?: T;
+  status?: T;
+  currentTab?: T;
   submittedAt?: T;
   submitterEmail?: T;
   metadata?:

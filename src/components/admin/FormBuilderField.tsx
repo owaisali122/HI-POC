@@ -41,10 +41,14 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
     if (!builderRef.current) return
 
     try {
+      // Register custom components first
+      const { registerCustomComponents, getBuilderConfig } = await import('../../utils/formio-component-registry')
+      const Formio = await registerCustomComponents()
+
       // Dynamically import Form.io to avoid SSR issues
       const FormioModule = await import('formiojs')
-      const Formio = (FormioModule as any).default || FormioModule
-      const FormBuilder = Formio.FormBuilder
+      const FormioInstance = (FormioModule as any).default || FormioModule
+      const FormBuilder = FormioInstance.FormBuilder
 
       // Destroy existing instance if any
       if (builderInstanceRef.current) {
@@ -63,53 +67,11 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
         ? value
         : DEFAULT_SCHEMA
 
+      // Get builder config with custom components
+      const builderConfig = getBuilderConfig()
+
       // Create the builder instance
-      const builder = new FormBuilder(builderRef.current, initialSchema, {
-        builder: {
-          basic: {
-            default: true,
-            components: {
-              textfield: true,
-              textarea: true,
-              number: true,
-              password: true,
-              checkbox: true,
-              selectboxes: true,
-              select: true,
-              radio: true,
-              button: true,
-            },
-          },
-          advanced: {
-            default: true,
-            components: {
-              email: true,
-              url: true,
-              phoneNumber: true,
-              datetime: true,
-              day: true,
-              time: true,
-              currency: true,
-              signature: true,
-            },
-          },
-          layout: {
-            default: true,
-            components: {
-              htmlelement: true,
-              content: true,
-              columns: true,
-              fieldset: true,
-              panel: true,
-              well: true,
-            },
-          },
-          data: {
-            default: false,
-          },
-          premium: false,
-        },
-      })
+      const builder = new FormBuilder(builderRef.current, initialSchema, builderConfig)
 
       // Wait for builder to be ready
       await builder.ready

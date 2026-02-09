@@ -1,10 +1,20 @@
+@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/font-awesome.css");
+
 .formio-dialog{
   .card{
     display: block;
   }
+  
     .nav {
      height: fit-content; 
      width: auto; 
       opacity: 1; 
     }
+}
+
+.formio-builder{
+  .nav {
+     opacity: 1; 
+     height: auto;
+   }
 }

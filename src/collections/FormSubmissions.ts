@@ -10,10 +10,15 @@ export const FormSubmissions: CollectionConfig = {
   access: {
     // Only admins can read submissions
     read: ({ req: { user } }) => Boolean(user),
-    // Public can create submissions
+    // Public can create submissions (including drafts)
     create: () => true,
-    // Only admins can update/delete
-    update: ({ req: { user } }) => Boolean(user),
+    // Allow updates for drafts (handled via API endpoints with proper validation)
+    // Admins can update all
+    update: ({ req: { user } }) => {
+      // API endpoints will handle draft updates with proper validation
+      // Admins can always update
+      return Boolean(user)
+    },
     delete: ({ req: { user } }) => Boolean(user),
   },
   fields: [
@@ -36,6 +41,26 @@ export const FormSubmissions: CollectionConfig = {
       },
     },
     {
+      name: 'status',
+      type: 'select',
+      options: [
+        { label: 'Draft', value: 'draft' },
+        { label: 'Submitted', value: 'submitted' },
+      ],
+      defaultValue: 'draft',
+      required: true,
+      admin: {
+        description: 'Submission status - Draft allows saving partial data',
+      },
+    },
+    {
+      name: 'currentTab',
+      type: 'text',
+      admin: {
+        description: 'Current tab index or key for resuming form',
+      },
+    },
+    {
       name: 'submittedAt',
       type: 'date',
       admin: {
@@ -46,8 +71,12 @@ export const FormSubmissions: CollectionConfig = {
       },
       hooks: {
         beforeChange: [
-          ({ operation }) => {
-            if (operation === 'create') {
+          ({ operation, data }) => {
+            // Only set submittedAt when status changes to 'submitted'
+            if (operation === 'create' && data?.status === 'submitted') {
+              return new Date().toISOString()
+            }
+            if (operation === 'update' && data?.status === 'submitted') {
               return new Date().toISOString()
             }
           },
