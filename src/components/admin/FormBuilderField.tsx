@@ -23,6 +23,15 @@ const DEFAULT_SCHEMA = {
 
 type DisplayType = 'form' | 'wizard'
 
+/** Deep clone so Payload sees a new value and enables Save / marks form dirty */
+function cloneSchema(schema: object): object {
+  try {
+    return JSON.parse(JSON.stringify(schema))
+  } catch {
+    return { ...schema, components: Array.isArray((schema as { components?: unknown[] }).components) ? [...(schema as { components: unknown[] }).components] : [] }
+  }
+}
+
 export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
   const { value, setValue } = useField<object>({ path })
   const builderRef = useRef<HTMLDivElement>(null)
@@ -120,38 +129,50 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
         }
       }
 
+      // Sync builder → field with a deep clone so Payload sees a new value (enables Save, marks form dirty)
+      const syncSchemaToField = (schema: object) => {
+        if (!schema || typeof schema !== 'object') return
+        const withDisplay = 'display' in schema ? schema : { ...schema, display: schemaWithDisplay.display }
+        setValue(cloneSchema(withDisplay))
+      }
+
       // Always sync builder state to field after ready (e.g. Wizard adds default first page but doesn't emit 'change')
       const schemaToSave = getSchemaFromInstance()
       if (schemaToSave && Array.isArray((schemaToSave as { components?: unknown[] }).components)) {
-        setValue(schemaToSave)
+        syncSchemaToField(schemaToSave)
       }
 
       // Listen on the inner instance (Form does not forward 'change' from WizardBuilder/WebformBuilder)
       instance.on('change', (schema: object) => {
-        if (schema && typeof schema === 'object') {
-          const withDisplay = 'display' in schema ? schema : { ...schema, display: schemaWithDisplay.display }
-          setValue(withDisplay)
-        }
+        if (schema && typeof schema === 'object') syncSchemaToField(schema)
+      })
+
+      // saveComponent = user saved the edit dialog; ensure we persist and mark form dirty
+      instance.on('saveComponent', () => {
+        setTimeout(() => {
+          const s = getSchemaFromInstance()
+          if (s) syncSchemaToField(s)
+        }, 50)
       })
 
       instance.on('addComponent', () => {
         setTimeout(() => {
           const s = getSchemaFromInstance()
-          if (s) setValue(s)
+          if (s) syncSchemaToField(s)
         }, 100)
       })
 
       instance.on('removeComponent', () => {
         setTimeout(() => {
           const s = getSchemaFromInstance()
-          if (s) setValue(s)
+          if (s) syncSchemaToField(s)
         }, 100)
       })
 
       instance.on('updateComponent', () => {
         setTimeout(() => {
           const s = getSchemaFromInstance()
-          if (s) setValue(s)
+          if (s) syncSchemaToField(s)
         }, 100)
       })
 
@@ -187,7 +208,7 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
     (newDisplay: DisplayType) => {
       const currentSchema =
         value && typeof value === 'object' && Object.keys(value).length > 0 ? { ...value } : { ...DEFAULT_SCHEMA }
-      const newSchema = { ...currentSchema, display: newDisplay }
+      const newSchema = cloneSchema({ ...currentSchema, display: newDisplay })
       setValue(newSchema)
       reinitWithSchemaRef.current?.(newSchema)
     },
