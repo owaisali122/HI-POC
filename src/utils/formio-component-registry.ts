@@ -822,7 +822,44 @@ export async function registerCustomComponents() {
 
       Formio.Components.setComponent('tabnavigationbuttons', TabNavigationButtons)
       console.log('✅ Tab Navigation Buttons component registered successfully')
-      console.log('✅ SSN component registered successfully')
+
+      // Register Tab Progress Bar component
+      const { TabProgressComponent } = await import('../components/formio/TabProgressComponent')
+      
+      const TabProgress = class extends BaseComponent {
+        static schema(overrides?: any) {
+          return TabProgressComponent.schema(overrides)
+        }
+
+        static get builderInfo() {
+          return TabProgressComponent.builderInfo
+        }
+
+        static editForm() {
+          return TabProgressComponent.editForm()
+        }
+
+        constructor(component: any, options: any, data: any) {
+          super(component, options, data)
+        }
+
+        init() {
+          super.init()
+        }
+
+        render() {
+          return super.render('tabprogress')
+        }
+
+        attach(element: HTMLElement) {
+          const instance = new TabProgressComponent(this.component, this.options, this.data)
+          instance.root = this.root
+          return instance.attach(element)
+        }
+      }
+
+      Formio.Components.setComponent('tabprogress', TabProgress)
+      console.log('✅ Tab Progress Bar component registered successfully')
     } else {
       console.warn('Form.io Components API not available')
     }
@@ -840,6 +877,8 @@ export async function registerCustomComponents() {
  */
 export function getBuilderConfig() {
   return {
+    // Use bootstrap template so Wizard builder shows page tabs and "+ PAGE" button
+    template: 'bootstrap',
     builder: {
       basic: {
         default: true,
@@ -850,14 +889,19 @@ export function getBuilderConfig() {
           password: true,
           checkbox: true,
           selectboxes: true,
+          email: true,
+          hidden: true,
           select: true,
           radio: true,
           button: true,
+          currency: true,
+          datetime: true,
           documentViewer: true, // Custom Document Viewer component in Basic tab
           documentUpload: true, // Custom Document Upload component in Basic tab
           searchableDropdown: true, // Custom Searchable Dropdown component in Basic tab
           ssn: true, // Custom SSN component in Basic tab
           tabnavigationbuttons: true, // Custom Tab Navigation Buttons component in Basic tab
+          tabprogress: true, // Custom Tab Progress Bar component in Basic tab
         },
       },
       advanced: false,

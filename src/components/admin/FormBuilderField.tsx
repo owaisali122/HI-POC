@@ -21,6 +21,8 @@ const DEFAULT_SCHEMA = {
   components: [],
 }
 
+type DisplayType = 'form' | 'wizard'
+
 export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
   const { value, setValue } = useField<object>({ path })
   const builderRef = useRef<HTMLDivElement>(null)
@@ -28,6 +30,15 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const isInitializedRef = useRef(false)
+  const reinitWithSchemaRef = useRef<((schema: object) => Promise<void>) | null>(null)
+  const valueRef = useRef(value)
+  valueRef.current = value
+
+  // Current display type from schema (for the dropdown)
+  const displayType: DisplayType =
+    (value && typeof value === 'object' && 'display' in value && (value.display === 'wizard' || value.display === 'form'))
+      ? (value.display as DisplayType)
+      : 'form'
 
   // Set default value immediately if no value exists
   useEffect(() => {
@@ -36,14 +47,13 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
     }
   }, [value, setValue])
 
-
-  const initBuilder = useCallback(async () => {
+  const initBuilder = useCallback(async (overrideSchema?: object) => {
     if (!builderRef.current) return
 
     try {
       // Register custom components first
       const { registerCustomComponents, getBuilderConfig } = await import('../../utils/formio-component-registry')
-      const Formio = await registerCustomComponents()
+      await registerCustomComponents()
 
       // Dynamically import Form.io to avoid SSR issues
       const FormioModule = await import('formiojs')
@@ -57,62 +67,91 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
         } catch (e) {
           // Ignore destroy errors
         }
+        builderInstanceRef.current = null
       }
 
       // Clear the container
       builderRef.current.innerHTML = ''
 
-      // Initialize the builder with current value or default schema
-      const initialSchema = value && typeof value === 'object' && Object.keys(value).length > 0
-        ? value
-        : DEFAULT_SCHEMA
+      // Schema: override (when switching display) or current value or default
+      const currentValue = valueRef.current
+      const initialSchema =
+        overrideSchema ??
+        (currentValue && typeof currentValue === 'object' && Object.keys(currentValue).length > 0
+          ? currentValue
+          : DEFAULT_SCHEMA)
+
+      // Ensure display is set so Form.io picks WebformBuilder vs WizardBuilder
+      const schemaWithDisplay = {
+        ...initialSchema,
+        display: initialSchema && typeof initialSchema === 'object' && 'display' in initialSchema
+          ? (initialSchema as { display?: string }).display
+          : 'form',
+      }
+      if (schemaWithDisplay.display !== 'form' && schemaWithDisplay.display !== 'wizard') {
+        schemaWithDisplay.display = 'form'
+      }
 
       // Get builder config with custom components
       const builderConfig = getBuilderConfig()
 
-      // Create the builder instance
-      const builder = new FormBuilder(builderRef.current, initialSchema, builderConfig)
+      // Create the builder (Form wrapper); .ready resolves to the inner builder (WizardBuilder / WebformBuilder)
+      const formBuilder = new FormBuilder(builderRef.current, schemaWithDisplay, builderConfig)
+      const instance = await formBuilder.ready
 
-      // Wait for builder to be ready
-      await builder.ready
-
-      builderInstanceRef.current = builder
+      builderInstanceRef.current = instance
       isInitializedRef.current = true
 
-      // Set the initial value to ensure it's saved
-      if (!value || Object.keys(value).length === 0) {
-        setValue(builder.schema)
+      // Get schema from inner instance (Form has no .schema; WizardBuilder/WebformBuilder have .schema or .form)
+      const getSchemaFromInstance = (): object | null => {
+        try {
+          const inst = builderInstanceRef.current
+          if (!inst) return null
+          // WizardBuilder: .form is _form (has display + components); .schema getter can throw before attach
+          if (inst.form && typeof inst.form === 'object' && Array.isArray((inst.form as { components?: unknown }).components)) {
+            return { ...(inst.form as object), display: schemaWithDisplay.display }
+          }
+          if (inst.schema && typeof inst.schema === 'object') {
+            return inst.schema as object
+          }
+          return null
+        } catch {
+          return null
+        }
       }
 
-      // Listen for schema changes
-      builder.on('change', (schema: object) => {
+      // Always sync builder state to field after ready (e.g. Wizard adds default first page but doesn't emit 'change')
+      const schemaToSave = getSchemaFromInstance()
+      if (schemaToSave && Array.isArray((schemaToSave as { components?: unknown[] }).components)) {
+        setValue(schemaToSave)
+      }
+
+      // Listen on the inner instance (Form does not forward 'change' from WizardBuilder/WebformBuilder)
+      instance.on('change', (schema: object) => {
         if (schema && typeof schema === 'object') {
-          setValue(schema)
+          const withDisplay = 'display' in schema ? schema : { ...schema, display: schemaWithDisplay.display }
+          setValue(withDisplay)
         }
       })
 
-      // Also listen for component add/remove events
-      builder.on('addComponent', () => {
+      instance.on('addComponent', () => {
         setTimeout(() => {
-          if (builderInstanceRef.current?.schema) {
-            setValue(builderInstanceRef.current.schema)
-          }
+          const s = getSchemaFromInstance()
+          if (s) setValue(s)
         }, 100)
       })
 
-      builder.on('removeComponent', () => {
+      instance.on('removeComponent', () => {
         setTimeout(() => {
-          if (builderInstanceRef.current?.schema) {
-            setValue(builderInstanceRef.current.schema)
-          }
+          const s = getSchemaFromInstance()
+          if (s) setValue(s)
         }, 100)
       })
 
-      builder.on('updateComponent', () => {
+      instance.on('updateComponent', () => {
         setTimeout(() => {
-          if (builderInstanceRef.current?.schema) {
-            setValue(builderInstanceRef.current.schema)
-          }
+          const s = getSchemaFromInstance()
+          if (s) setValue(s)
         }, 100)
       })
 
@@ -122,21 +161,38 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
       setError('Failed to load form builder. Please refresh the page.')
       setIsLoading(false)
     }
-  }, []) // Remove value dependency to prevent re-initialization
+  }, [setValue])
+
+  // Expose reinit so "Display as" dropdown can switch builder type
+  reinitWithSchemaRef.current = useCallback(async (schema: object) => {
+    setIsLoading(true)
+    setError(null)
+    await initBuilder(schema)
+  }, [initBuilder])
 
   useEffect(() => {
     initBuilder()
-
     return () => {
       if (builderInstanceRef.current) {
         try {
           builderInstanceRef.current.destroy()
         } catch (e) {
-          // Ignore destroy errors
+          // Ignore
         }
       }
     }
   }, [initBuilder])
+
+  const handleDisplayChange = useCallback(
+    (newDisplay: DisplayType) => {
+      const currentSchema =
+        value && typeof value === 'object' && Object.keys(value).length > 0 ? { ...value } : { ...DEFAULT_SCHEMA }
+      const newSchema = { ...currentSchema, display: newDisplay }
+      setValue(newSchema)
+      reinitWithSchemaRef.current?.(newSchema)
+    },
+    [value, setValue],
+  )
 
   if (error) {
     return (
@@ -152,6 +208,27 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
         className={`formio-builder formbuilder ${styles.formBuilderWrapper}`}
         data-form-builder-instance
       >
+        <div className={styles.formBuilderToolbar}>
+          <label htmlFor="formio-display-as" className={styles.formBuilderToolbarLabel}>
+            Display as
+          </label>
+          <select
+            id="formio-display-as"
+            className={styles.formBuilderDisplaySelect}
+            value={displayType}
+            onChange={(e) => handleDisplayChange(e.target.value as DisplayType)}
+            aria-label="Form display type"
+          >
+            <option value="form">Form</option>
+            <option value="wizard">Wizard</option>
+          </select>
+          <span className={styles.formBuilderToolbarHint}>
+            {displayType === 'wizard'
+              ? 'Use Panels as pages; add pages with + PAGE.'
+              : 'Single-page form.'}
+          </span>
+        </div>
+
         {isLoading && (
           <div className={styles.formBuilderLoading}>
             <span>Loading Form Builder...</span>

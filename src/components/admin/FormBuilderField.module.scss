@@ -1,5 +1,44 @@
 /* FormBuilderField Component Styles */
 
+/* Toolbar: "Display as" dropdown (Form / Wizard) - matches Form.io builder UI */
+.formBuilderToolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--theme-elevation-150);
+  flex-wrap: wrap;
+}
+
+.formBuilderToolbarLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--theme-elevation-800);
+}
+
+.formBuilderDisplaySelect {
+  font-size: 0.875rem;
+  padding: 6px 12px;
+  border: 1px solid var(--theme-elevation-250);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--theme-elevation-1000);
+  min-width: 120px;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: var(--theme-elevation-400);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  }
+}
+
+.formBuilderToolbarHint {
+  font-size: 0.75rem;
+  color: var(--theme-elevation-600);
+}
+
 /* Wrapper Styles */
 .formBuilderWrapper {
   margin: 16px 0;
@@ -45,6 +84,59 @@
 
   :global(.formio-component:hover) {
     border-color: #3b82f6;
+  }
+
+  /* Wizard builder: ensure page tabs and "+ PAGE" button are visible (like Form.io reference) */
+  :global(.wizard-pages) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    margin: 0 0 1rem 0;
+    padding: 0;
+  }
+
+  :global(.wizard-pages li) {
+    display: inline-flex;
+    margin: 0;
+  }
+
+  :global(.wizard-page-label) {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    color: #fff;
+    border: none;
+  }
+
+  :global(.wizard-pages li:not(.wizard-add-page) .wizard-page-label) {
+    background-color: #0d6efd;
+  }
+
+  :global(.wizard-pages li:not(.wizard-add-page) .badge-info) {
+    background-color: #0dcaf0;
+  }
+
+  :global(.wizard-pages li:not(.wizard-add-page) .badge-primary) {
+    background-color: #0d6efd;
+  }
+
+  :global(.wizard-add-page .wizard-page-label) {
+    background-color: #198754;
+    cursor: pointer;
+  }
+
+  :global(.wizard-add-page .wizard-page-label:hover) {
+    background-color: #157347;
+  }
+
+  :global(.wizard-add-page) {
+    list-style: none;
   }
 }
 
