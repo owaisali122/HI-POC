@@ -860,6 +860,122 @@ export async function registerCustomComponents() {
 
       Formio.Components.setComponent('tabprogress', TabProgress)
       console.log('✅ Tab Progress Bar component registered successfully')
+
+      // Register Schema Reference Field (Designer: clone existing field into place)
+      const { SchemaReferenceFieldComponent } = await import('../components/formio/SchemaReferenceField')
+
+      /** Find component schema by key in form tree (components, columns, rows, tabs). */
+      function findSchemaByKey(components: any[], key: string): any {
+        if (!Array.isArray(components) || !key) return null
+        for (const c of components) {
+          if (!c || typeof c !== 'object') continue
+          if (c.key === key) return c
+          if (Array.isArray(c.components)) {
+            const found = findSchemaByKey(c.components, key)
+            if (found) return found
+          }
+          if (Array.isArray(c.columns)) {
+            for (const col of c.columns) {
+              if (col?.components) {
+                const found = findSchemaByKey(col.components, key)
+                if (found) return found
+              }
+            }
+          }
+          if (Array.isArray(c.rows)) {
+            for (const row of c.rows) {
+              if (!Array.isArray(row)) continue
+              for (const col of row) {
+                if (col?.components) {
+                  const found = findSchemaByKey(col.components, key)
+                  if (found) return found
+                }
+              }
+            }
+          }
+          if (Array.isArray(c.tabs)) {
+            for (const tab of c.tabs) {
+              if (tab?.components) {
+                const found = findSchemaByKey(tab.components, key)
+                if (found) return found
+              }
+            }
+          }
+        }
+        return null
+      }
+
+      const SchemaReferenceField = class extends BaseComponent {
+        static schema(overrides?: any) {
+          return SchemaReferenceFieldComponent.schema(overrides)
+        }
+
+        static get builderInfo() {
+          return SchemaReferenceFieldComponent.builderInfo
+        }
+
+        static editForm() {
+          return SchemaReferenceFieldComponent.editForm()
+        }
+
+        constructor(component: any, options: any, data: any) {
+          super(component, options, data)
+        }
+
+        init() {
+          super.init()
+        }
+
+        get className() {
+          const formGroupClass = (this as any).transform?.('class', 'form-group') ?? 'form-group'
+          let className = `${formGroupClass} has-feedback formio-component formio-component-fieldReference `
+          if (this.component.key) className += `formio-component-${this.component.key} `
+          if (this.component.customClass) className += this.component.customClass
+          return className
+        }
+
+        render() {
+          const refKey = this.component.referenceKey
+          const fallback = () => super.render(refKey ? `Reference Field → ${refKey}` : 'Reference Field')
+          if (!refKey) return fallback()
+
+          const root = (this as any).root
+          const getFormSchema = (this as any).options?.getFormSchema
+          const formFromGetter = typeof getFormSchema === 'function' ? getFormSchema() : null
+          const formComponents =
+            (formFromGetter?.components != null ? formFromGetter.components : null) ??
+            root?.form?.components ??
+            root?.component?.components ??
+            (this as any).options?.form?.components ??
+            []
+          const refSchema = findSchemaByKey(Array.isArray(formComponents) ? formComponents : [], refKey)
+          if (!refSchema || refSchema.type === 'fieldReference') return fallback()
+
+          const label = (refSchema.label || refKey).replace(/</g, '&lt;').replace(/"/g, '&quot;')
+          const type = refSchema.type
+          let previewHtml: string
+          if (type === 'checkbox' || type === 'selectboxes') {
+            previewHtml = `<label class="form-check-label"><input type="checkbox" disabled class="form-check-input" /> ${label}</label>`
+          } else if (type === 'textarea') {
+            previewHtml = `<textarea disabled class="form-control" rows="2" placeholder="${label}"></textarea>`
+          } else if (type === 'textfield' || type === 'email' || type === 'number' || type === 'password') {
+            previewHtml = `<input type="text" disabled class="form-control" placeholder="${label}" />`
+          } else if (type === 'select' || type === 'radio') {
+            previewHtml = `<select disabled class="form-control"><option>${label}</option></select>`
+          } else {
+            previewHtml = `<span class="text-muted">${label} (${type})</span>`
+          }
+          return super.render(previewHtml)
+        }
+
+        getValue() {
+          return null
+        }
+
+        setValue() {}
+      }
+
+      Formio.Components.setComponent('fieldReference', SchemaReferenceField)
     } else {
       console.warn('Form.io Components API not available')
     }
@@ -874,8 +990,9 @@ export async function registerCustomComponents() {
 /**
  * Get builder configuration with custom components
  * Note: Advanced tab is hidden (premium features)
+ * @param overrides - Optional overrides merged into config (e.g. getFormSchema for Reference Field preview)
  */
-export function getBuilderConfig() {
+export function getBuilderConfig(overrides?: Record<string, unknown>) {
   return {
     // Use bootstrap template so Wizard builder shows page tabs and "+ PAGE" button
     template: 'bootstrap',
@@ -896,12 +1013,13 @@ export function getBuilderConfig() {
           button: true,
           currency: true,
           datetime: true,
-          documentViewer: true, // Custom Document Viewer component in Basic tab
-          documentUpload: true, // Custom Document Upload component in Basic tab
-          searchableDropdown: true, // Custom Searchable Dropdown component in Basic tab
-          ssn: true, // Custom SSN component in Basic tab
-          tabnavigationbuttons: true, // Custom Tab Navigation Buttons component in Basic tab
-          tabprogress: true, // Custom Tab Progress Bar component in Basic tab
+          documentViewer: true,
+          documentUpload: true,
+          searchableDropdown: true,
+          ssn: true,
+          tabnavigationbuttons: true,
+          tabprogress: true,
+          fieldReference: true,
         },
       },
       advanced: false,
@@ -921,5 +1039,6 @@ export function getBuilderConfig() {
       },
       premium: false,
     },
+    ...overrides,
   }
 }

@@ -14,6 +14,37 @@
  */
 
 export class SearchableDropdownComponent {
+  // Instance properties (set in constructor / setupSearchableDropdown; inherited from Form.io select at runtime)
+  declare component: any
+  declare options: any
+  declare data: any
+  declare element: HTMLElement
+  declare dataValue: any
+  declare value: any
+  declare valueProperty: string
+  declare labelProperty: string
+
+  searchInput: HTMLInputElement | null = null
+  dropdownContainer: HTMLDivElement | null = null
+  optionsContainer: HTMLDivElement | null = null
+  selectedTagsContainer: HTMLDivElement | null = null
+  isLoading = false
+  searchResults: any[] = []
+  selectedValues: any[] = []
+  selectedLabels: string[] = []
+  debounceTimer: ReturnType<typeof setTimeout> | null = null
+  currentHighlightIndex = -1
+  multiple = false
+  apiUrl = ''
+  minSearchLength = 2
+  debounceDelay = 300
+
+  /** Get Form.io Select component prototype (avoids calling registry wrapper and causing recursion) */
+  private static getSelectProto(): { init?: () => void; setValue?: (v: any) => void; destroy?: () => void } | null {
+    const Formio = (typeof window !== 'undefined' && (window as any).Formio) || (typeof global !== 'undefined' && (global as any).Formio)
+    return Formio?.Components?.components?.select?.prototype ?? null
+  }
+
   static schema(overrides?: any) {
     return {
       type: 'searchableDropdown',
@@ -65,7 +96,7 @@ export class SearchableDropdownComponent {
         },
         {
           type: 'checkbox',
-          key: 'required',
+          key: 'validate.required',
           label: 'Required',
           input: true,
           defaultValue: false,
@@ -164,15 +195,36 @@ export class SearchableDropdownComponent {
   }
 
   init() {
-    // Call parent init if it exists
-    if (super.init && typeof super.init === 'function') {
-      super.init.call(this)
+    // Call Form.io Select init directly (not wrapper's init to avoid recursion when used via registry)
+    const selectProto = SearchableDropdownComponent.getSelectProto()
+    if (selectProto?.init && typeof selectProto.init === 'function') {
+      selectProto.init.call(this)
     }
     this.setupSearchableDropdown()
   }
 
   setupSearchableDropdown() {
     if (!this.element) return
+
+    // Show required asterisk (*) on label in preview UI (deferred so label exists in DOM)
+    const addRequiredAsterisk = () => {
+      const isRequired = this.component?.required === true || this.component?.validate?.required === true
+      if (!isRequired) return
+      const labelEl =
+        this.element.querySelector('label') ||
+        this.element.querySelector('.control-label') ||
+        this.element.querySelector('[ref="label"]')
+      if (labelEl && !labelEl.querySelector('.searchable-dropdown-required-asterisk')) {
+        const asterisk = document.createElement('span')
+        asterisk.className = 'searchable-dropdown-required-asterisk'
+        asterisk.setAttribute('aria-hidden', 'true')
+        asterisk.textContent = ' *'
+        asterisk.style.color = '#dc3545'
+        asterisk.style.marginLeft = '2px'
+        labelEl.appendChild(asterisk)
+      }
+    }
+    setTimeout(addRequiredAsterisk, 0)
 
     // Find the select element
     const selectElement = this.element.querySelector('select')
@@ -307,35 +359,35 @@ export class SearchableDropdownComponent {
     }
 
     // Handle input changes with debouncing
-    this.searchInput.addEventListener('input', (e) => {
+    this.searchInput?.addEventListener('input', (e) => {
       const query = (e.target as HTMLInputElement).value.trim()
       this.handleSearch(query)
     })
 
     // Handle input focus
-    this.searchInput.addEventListener('focus', () => {
+    this.searchInput?.addEventListener('focus', () => {
       this.openDropdown()
-      const query = this.searchInput.value.trim()
+      const query = this.searchInput?.value.trim() ?? ''
       if (query.length >= this.minSearchLength) {
         this.handleSearch(query)
       }
     })
 
     // Handle input blur (with delay to allow option clicks)
-    this.searchInput.addEventListener('blur', () => {
+    this.searchInput?.addEventListener('blur', () => {
       setTimeout(() => {
         this.closeDropdown()
       }, 200)
     })
 
     // Handle keyboard navigation
-    this.searchInput.addEventListener('keydown', (e) => {
+    this.searchInput?.addEventListener('keydown', (e) => {
       this.handleKeyDown(e)
     })
 
     // Handle click outside to close dropdown
     document.addEventListener('click', (e) => {
-      if (!this.dropdownContainer.contains(e.target as Node)) {
+      if (this.dropdownContainer && !this.dropdownContainer.contains(e.target as Node)) {
         this.closeDropdown()
       }
     })
@@ -547,12 +599,12 @@ export class SearchableDropdownComponent {
       option.addEventListener('mouseleave', () => {
         if (!isSelected || !this.multiple) {
           option.style.backgroundColor = ''
-        } else if (this.multiple && isSelected) {
+        } else {
           option.style.backgroundColor = '#e7f3ff'
         }
       })
 
-      this.optionsContainer.appendChild(option)
+      this.optionsContainer?.appendChild(option)
     })
   }
 
@@ -564,7 +616,7 @@ export class SearchableDropdownComponent {
       // Single selection
       this.selectedValues = [value]
       this.selectedLabels = [label]
-      this.searchInput.value = label
+      if (this.searchInput) this.searchInput.value = label
       this.closeDropdown()
 
       // Update the hidden select element
@@ -606,7 +658,7 @@ export class SearchableDropdownComponent {
     this.renderOptions() // Re-render to update checkboxes
 
     // Clear search input
-    this.searchInput.value = ''
+    if (this.searchInput) this.searchInput.value = ''
 
     // Update the hidden select element (for multi-select, set multiple values)
     const selectElement = this.element.querySelector('select')
@@ -703,11 +755,12 @@ export class SearchableDropdownComponent {
 
       tag.appendChild(tagLabel)
       tag.appendChild(removeButton)
-      this.selectedTagsContainer.appendChild(tag)
+      this.selectedTagsContainer?.appendChild(tag)
     })
   }
 
   handleKeyDown(e: KeyboardEvent) {
+    if (!this.optionsContainer) return
     const options = this.optionsContainer.querySelectorAll('.searchable-dropdown-option')
     
     switch (e.key) {
@@ -778,16 +831,14 @@ export class SearchableDropdownComponent {
 
   openDropdown() {
     if (!this.optionsContainer) return
-    this.isDropdownOpen = true
     this.optionsContainer.style.display = 'block'
-    this.searchInput.setAttribute('aria-expanded', 'true')
+    this.searchInput?.setAttribute('aria-expanded', 'true')
   }
 
   closeDropdown() {
     if (!this.optionsContainer) return
-    this.isDropdownOpen = false
     this.optionsContainer.style.display = 'none'
-    this.searchInput.setAttribute('aria-expanded', 'false')
+    this.searchInput?.setAttribute('aria-expanded', 'false')
     this.currentHighlightIndex = -1
   }
 
@@ -810,14 +861,14 @@ export class SearchableDropdownComponent {
           }
         </style>
       `
-      loadingContainer.style.display = 'block'
+      ;(loadingContainer as HTMLElement).style.display = 'block'
     }
   }
 
   hideLoading() {
     const loadingContainer = this.dropdownContainer?.querySelector('.searchable-dropdown-loading')
     if (loadingContainer) {
-      loadingContainer.style.display = 'none'
+      ;(loadingContainer as HTMLElement).style.display = 'none'
     }
   }
 
@@ -905,9 +956,10 @@ export class SearchableDropdownComponent {
       this.renderOptions()
     }
 
-    // Call parent setValue if exists
-    if (super.setValue && typeof super.setValue === 'function') {
-      super.setValue.call(this, value)
+    // Call Form.io Select setValue directly (not wrapper's to avoid recursion when used via registry)
+    const selectProto = SearchableDropdownComponent.getSelectProto()
+    if (selectProto?.setValue && typeof selectProto.setValue === 'function') {
+      selectProto.setValue.call(this, value)
     }
   }
 
@@ -926,9 +978,10 @@ export class SearchableDropdownComponent {
       this.dropdownContainer.remove()
     }
 
-    // Call parent destroy if exists
-    if (super.destroy && typeof super.destroy === 'function') {
-      super.destroy.call(this)
+    // Call Form.io Select destroy directly (not wrapper's to avoid recursion when used via registry)
+    const selectProto = SearchableDropdownComponent.getSelectProto()
+    if (selectProto?.destroy && typeof selectProto.destroy === 'function') {
+      selectProto.destroy.call(this)
     }
   }
 }

@@ -49,7 +49,7 @@ export const Forms: CollectionConfig = {
       type: 'json',
       required: true,
       defaultValue: {
-        display: 'wizard',
+        display: 'forms',
         components: [],
       },
       admin: {

@@ -32,6 +32,103 @@ function cloneSchema(schema: object): object {
   }
 }
 
+const REFERENCE_FIELD_TYPE = 'fieldReference'
+
+/** FormIO types that are layout/group only – not referenceable as a single field. */
+const REFERENCE_EXCLUDED_TYPES = new Set([
+  'panel',
+  'fieldset',
+  'columns',
+  'tabs',
+  'table',
+  'well',
+  'content',
+  'htmlelement',
+  'form',
+  'datagrid',
+  'editgrid',
+  'container',
+  'nested',
+  REFERENCE_FIELD_TYPE,
+])
+
+/** Collect component keys from form (recursive: components, panels, tabs). */
+function collectComponentKeys(components: unknown[], excludeKey?: string): string[] {
+  const keys: string[] = []
+  if (!Array.isArray(components)) return keys
+  for (const c of components) {
+    if (typeof c !== 'object' || c === null) continue
+    const comp = c as Record<string, unknown>
+    if (typeof comp.key === 'string' && comp.key && comp.key !== excludeKey) {
+      keys.push(comp.key)
+    }
+    if (Array.isArray(comp.components)) {
+      keys.push(...collectComponentKeys(comp.components as unknown[], excludeKey))
+    }
+    const tabs = comp.tabs as Array<{ components?: unknown[] }> | undefined
+    if (Array.isArray(tabs)) {
+      for (const tab of tabs) {
+        if (tab && Array.isArray(tab.components)) {
+          keys.push(...collectComponentKeys(tab.components, excludeKey))
+        }
+      }
+    }
+  }
+  return [...new Set(keys)]
+}
+
+/** Collect only field keys (exclude layout/group types) for Reference Field dropdown. */
+function collectFieldKeysForReference(components: unknown[], excludeKey?: string): string[] {
+  const keys: string[] = []
+  if (!Array.isArray(components)) return keys
+  for (const c of components) {
+    if (typeof c !== 'object' || c === null) continue
+    const comp = c as Record<string, unknown>
+    const type = comp.type as string | undefined
+    if (
+      typeof comp.key === 'string' &&
+      comp.key &&
+      comp.key !== excludeKey &&
+      type &&
+      !REFERENCE_EXCLUDED_TYPES.has(type)
+    ) {
+      keys.push(comp.key)
+    }
+    if (Array.isArray(comp.components)) {
+      keys.push(...collectFieldKeysForReference(comp.components as unknown[], excludeKey))
+    }
+    const tabs = comp.tabs as Array<{ components?: unknown[] }> | undefined
+    if (Array.isArray(tabs)) {
+      for (const tab of tabs) {
+        if (tab && Array.isArray(tab.components)) {
+          keys.push(...collectFieldKeysForReference(tab.components, excludeKey))
+        }
+      }
+    }
+    const columns = comp.columns as Array<{ components?: unknown[] }> | undefined
+    if (Array.isArray(columns)) {
+      for (const col of columns) {
+        if (col?.components) {
+          keys.push(...collectFieldKeysForReference(col.components as unknown[], excludeKey))
+        }
+      }
+    }
+    const rows = comp.rows as unknown[] | undefined
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        if (!Array.isArray(row)) continue
+        for (const col of row) {
+          const cell = col as { components?: unknown[] }
+          if (cell?.components) {
+            keys.push(...collectFieldKeysForReference(cell.components, excludeKey))
+          }
+        }
+      }
+    }
+  }
+  return [...new Set(keys)]
+}
+
 export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
   const { value, setValue } = useField<object>({ path })
   const builderRef = useRef<HTMLDivElement>(null)
@@ -60,13 +157,9 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
     if (!builderRef.current) return
 
     try {
-      // Register custom components first
+      // Register custom components and use the same Formio instance for the builder
       const { registerCustomComponents, getBuilderConfig } = await import('../../utils/formio-component-registry')
-      await registerCustomComponents()
-
-      // Dynamically import Form.io to avoid SSR issues
-      const FormioModule = await import('formiojs')
-      const FormioInstance = (FormioModule as any).default || FormioModule
+      const FormioInstance = await registerCustomComponents()
       const FormBuilder = FormioInstance.FormBuilder
 
       // Destroy existing instance if any
@@ -101,8 +194,13 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
         schemaWithDisplay.display = 'form'
       }
 
-      // Get builder config with custom components
-      const builderConfig = getBuilderConfig()
+      // Get builder config with custom components; pass getFormSchema so Reference Field preview can resolve refs
+      const builderConfig = getBuilderConfig({
+        getFormSchema: () => {
+          const inst = builderInstanceRef.current as { form?: { components?: unknown[] } } | null
+          return inst?.form ?? valueRef.current
+        },
+      })
 
       // Create the builder (Form wrapper); .ready resolves to the inner builder (WizardBuilder / WebformBuilder)
       const formBuilder = new FormBuilder(builderRef.current, schemaWithDisplay, builderConfig)
@@ -132,6 +230,11 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
       // Sync builder → field with a deep clone so Payload sees a new value (enables Save, marks form dirty)
       const syncSchemaToField = (schema: object) => {
         if (!schema || typeof schema !== 'object') return
+        const comps = (schema as { components?: unknown[] }).components
+        if (!Array.isArray(comps)) return
+        const current = valueRef.current as { components?: unknown[] } | null | undefined
+        const currentComps = current && typeof current === 'object' && Array.isArray(current.components) ? current.components : []
+        if (comps.length === 0 && currentComps.length > 0) return
         const withDisplay = 'display' in schema ? schema : { ...schema, display: schemaWithDisplay.display }
         setValue(cloneSchema(withDisplay))
       }
@@ -153,6 +256,32 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
           const s = getSchemaFromInstance()
           if (s) syncSchemaToField(s)
         }, 50)
+      })
+
+      // Populate Reference Field dropdown with form component keys when edit dialog opens
+      instance.on('editComponent', (component: Record<string, unknown>) => {
+        if (component && (component.type === REFERENCE_FIELD_TYPE || component.type === 'schemaReference')) {
+          setTimeout(() => {
+            try {
+              const inst = builderInstanceRef.current as { form?: { components?: unknown[] }; editForm?: { getComponent: (key: string) => { component: Record<string, unknown>; updateItems?: (a?: unknown, b?: unknown) => void } } } | null
+              if (!inst?.form?.components || !inst?.editForm) return
+              const keys = collectFieldKeysForReference(inst.form.components, component.key as string)
+              const values = keys.map((k) => ({ label: k, value: k }))
+              const refKeyComp = inst.editForm.getComponent('referenceKey')
+              if (refKeyComp?.component) {
+                const comp = refKeyComp.component as Record<string, unknown>
+                if (!comp.data) comp.data = {}
+                const data = comp.data as Record<string, unknown>
+                data.values = values
+                if (typeof (refKeyComp as { updateItems?: (a?: unknown, b?: unknown) => void }).updateItems === 'function') {
+                  (refKeyComp as { updateItems: (a?: unknown, b?: unknown) => void }).updateItems()
+                }
+              }
+            } catch (_) {
+              // ignore
+            }
+          }, 100)
+        }
       })
 
       instance.on('addComponent', () => {
