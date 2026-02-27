@@ -42,6 +42,7 @@ export class SchemaReferenceFieldComponent {
           },
           dataSrc: 'values',
           valueProperty: 'value',
+          labelProperty: 'label',
           template: '<span>{{ item.label }}</span>',
           description: 'Select a field from this form to clone. Only fields already in the form appear here.',
         },

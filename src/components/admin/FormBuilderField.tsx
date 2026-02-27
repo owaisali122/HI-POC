@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useField } from '@payloadcms/ui'
+import { APP_DETAIL_REF_EXCLUDE_TYPES } from '../formio/AppDetailRef'
+import { getFormsListUrl } from '../../config/formio'
+import type { FormioBuilderInstance, FormioSchema, FormDocFromApi, SelectOption } from '../../types/formio-builder'
 import styles from './FormBuilderField.module.scss'
 import { BootstrapProvider } from './BootstrapProvider'
-
-// Form.io styles are now loaded by BootstrapProvider
 
 interface FormBuilderFieldProps {
   path: string
@@ -33,54 +34,48 @@ function cloneSchema(schema: object): object {
 }
 
 const REFERENCE_FIELD_TYPE = 'fieldReference'
+const APP_DETAIL_REF_TYPE = 'appDetailRef'
 
-/** FormIO types that are layout/group only – not referenceable as a single field. */
-const REFERENCE_EXCLUDED_TYPES = new Set([
-  'panel',
-  'fieldset',
-  'columns',
-  'tabs',
-  'table',
-  'well',
-  'content',
-  'htmlelement',
-  'form',
-  'datagrid',
-  'editgrid',
-  'container',
-  'nested',
-  REFERENCE_FIELD_TYPE,
-])
-
-/** Collect component keys from form (recursive: components, panels, tabs). */
-function collectComponentKeys(components: unknown[], excludeKey?: string): string[] {
-  const keys: string[] = []
-  if (!Array.isArray(components)) return keys
-  for (const c of components) {
-    if (typeof c !== 'object' || c === null) continue
-    const comp = c as Record<string, unknown>
-    if (typeof comp.key === 'string' && comp.key && comp.key !== excludeKey) {
-      keys.push(comp.key)
-    }
-    if (Array.isArray(comp.components)) {
-      keys.push(...collectComponentKeys(comp.components as unknown[], excludeKey))
-    }
-    const tabs = comp.tabs as Array<{ components?: unknown[] }> | undefined
-    if (Array.isArray(tabs)) {
-      for (const tab of tabs) {
-        if (tab && Array.isArray(tab.components)) {
-          keys.push(...collectComponentKeys(tab.components, excludeKey))
-        }
-      }
-    }
-  }
-  return [...new Set(keys)]
+function getFormsCache(): { docs?: FormDocFromApi[] } | undefined {
+  if (typeof window === 'undefined') return undefined
+  const w = window as Window & { __appDetailRefFormsCache?: { docs?: FormDocFromApi[] }; top?: Window & { __appDetailRefFormsCache?: { docs?: FormDocFromApi[] } } }
+  return w.__appDetailRefFormsCache ?? w.top?.__appDetailRefFormsCache
 }
 
-/** Collect only field keys (exclude layout/group types) for Reference Field dropdown. */
-function collectFieldKeysForReference(components: unknown[], excludeKey?: string): string[] {
-  const keys: string[] = []
-  if (!Array.isArray(components)) return keys
+function setFormsCache(raw: { docs?: FormDocFromApi[] }): void {
+  if (typeof window === 'undefined') return
+  const w = window as Window & { __appDetailRefFormsCache?: unknown; top?: Window & { __appDetailRefFormsCache?: unknown } }
+  w.__appDetailRefFormsCache = raw
+  try {
+    w.top.__appDetailRefFormsCache = raw
+  } catch {
+    // cross-origin
+  }
+}
+
+/** Collect selectedFormId from all appDetailRef components in the tree. */
+function collectSelectedFormIds(components: unknown[]): string[] {
+  const ids: string[] = []
+  if (!Array.isArray(components)) return ids
+  for (const c of components) {
+    const comp = c as Record<string, unknown>
+    if (comp?.type === APP_DETAIL_REF_TYPE) {
+      const id = comp.selectedFormId ?? comp.value
+      if (id && typeof id === 'string') ids.push(String(id))
+    }
+    if (Array.isArray(comp?.components)) ids.push(...collectSelectedFormIds(comp.components as unknown[]))
+    const tabs = comp?.tabs as Array<{ components?: unknown[] }> | undefined
+    if (Array.isArray(tabs)) for (const t of tabs) { if (t?.components) ids.push(...collectSelectedFormIds(t.components)) }
+    const cols = comp?.columns as Array<{ components?: unknown[] }> | undefined
+    if (Array.isArray(cols)) for (const col of cols) { if (col?.components) ids.push(...collectSelectedFormIds(col.components as unknown[])) }
+  }
+  return [...new Set(ids)]
+}
+
+/** Collect key + label (for dropdown) from components; excludes layout types in exclude list. */
+function collectFieldKeysForReference(components: unknown[], excludeKey?: string): Array<{ key: string; label: string }> {
+  const out: Array<{ key: string; label: string }> = []
+  if (!Array.isArray(components)) return out
   for (const c of components) {
     if (typeof c !== 'object' || c === null) continue
     const comp = c as Record<string, unknown>
@@ -90,18 +85,19 @@ function collectFieldKeysForReference(components: unknown[], excludeKey?: string
       comp.key &&
       comp.key !== excludeKey &&
       type &&
-      !REFERENCE_EXCLUDED_TYPES.has(type)
+      !APP_DETAIL_REF_EXCLUDE_TYPES.includes(type)
     ) {
-      keys.push(comp.key)
+      const label = (comp.label as string) || (comp.title as string) || comp.key
+      out.push({ key: comp.key, label: label || comp.key })
     }
     if (Array.isArray(comp.components)) {
-      keys.push(...collectFieldKeysForReference(comp.components as unknown[], excludeKey))
+      out.push(...collectFieldKeysForReference(comp.components as unknown[], excludeKey))
     }
     const tabs = comp.tabs as Array<{ components?: unknown[] }> | undefined
     if (Array.isArray(tabs)) {
       for (const tab of tabs) {
         if (tab && Array.isArray(tab.components)) {
-          keys.push(...collectFieldKeysForReference(tab.components, excludeKey))
+          out.push(...collectFieldKeysForReference(tab.components, excludeKey))
         }
       }
     }
@@ -109,7 +105,7 @@ function collectFieldKeysForReference(components: unknown[], excludeKey?: string
     if (Array.isArray(columns)) {
       for (const col of columns) {
         if (col?.components) {
-          keys.push(...collectFieldKeysForReference(col.components as unknown[], excludeKey))
+          out.push(...collectFieldKeysForReference(col.components as unknown[], excludeKey))
         }
       }
     }
@@ -120,13 +116,18 @@ function collectFieldKeysForReference(components: unknown[], excludeKey?: string
         for (const col of row) {
           const cell = col as { components?: unknown[] }
           if (cell?.components) {
-            keys.push(...collectFieldKeysForReference(cell.components, excludeKey))
+            out.push(...collectFieldKeysForReference(cell.components, excludeKey))
           }
         }
       }
     }
   }
-  return [...new Set(keys)]
+  const seen = new Set<string>()
+  return out.filter((x) => {
+    if (seen.has(x.key)) return false
+    seen.add(x.key)
+    return true
+  })
 }
 
 export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
@@ -140,11 +141,13 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
   const valueRef = useRef(value)
   valueRef.current = value
 
-  // Current display type from schema (for the dropdown)
-  const displayType: DisplayType =
-    (value && typeof value === 'object' && 'display' in value && (value.display === 'wizard' || value.display === 'form'))
-      ? (value.display as DisplayType)
-      : 'form'
+  // Current display type from schema (for the dropdown) – memoized to avoid unnecessary re-renders
+  const displayType = useMemo<DisplayType>(() => {
+    if (value && typeof value === 'object' && 'display' in value && (value.display === 'wizard' || value.display === 'form')) {
+      return value.display as DisplayType
+    }
+    return 'form'
+  }, [value])
 
   // Set default value immediately if no value exists
   useEffect(() => {
@@ -209,17 +212,21 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
       builderInstanceRef.current = instance
       isInitializedRef.current = true
 
-      // Get schema from inner instance (Form has no .schema; WizardBuilder/WebformBuilder have .schema or .form)
-      const getSchemaFromInstance = (): object | null => {
+      const formsListUrl = getFormsListUrl()
+      const FormioGlobal = typeof window !== 'undefined' ? (window as Window & { Formio?: { makeRequest?: (method: string, url: string) => Promise<unknown> } }).Formio : undefined
+      const fetchForms = FormioGlobal?.makeRequest ? () => FormioGlobal.makeRequest!('GET', formsListUrl) : () => fetch(formsListUrl).then((r) => r.json())
+      fetchForms().then((raw: unknown) => setFormsCache(raw as { docs?: FormDocFromApi[] })).catch(() => {})
+
+      const getSchemaFromInstance = (): FormioSchema | null => {
         try {
-          const inst = builderInstanceRef.current
+          const inst = builderInstanceRef.current as FormioBuilderInstance | null
           if (!inst) return null
-          // WizardBuilder: .form is _form (has display + components); .schema getter can throw before attach
-          if (inst.form && typeof inst.form === 'object' && Array.isArray((inst.form as { components?: unknown }).components)) {
-            return { ...(inst.form as object), display: schemaWithDisplay.display }
+          const form = inst.form
+          if (form && typeof form === 'object' && Array.isArray(form.components)) {
+            return { ...form, display: schemaWithDisplay.display }
           }
           if (inst.schema && typeof inst.schema === 'object') {
-            return inst.schema as object
+            return inst.schema as FormioSchema
           }
           return null
         } catch {
@@ -250,60 +257,131 @@ export const FormBuilderField: React.FC<FormBuilderFieldProps> = ({ path }) => {
         if (schema && typeof schema === 'object') syncSchemaToField(schema)
       })
 
-      // saveComponent = user saved the edit dialog; ensure we persist and mark form dirty
       instance.on('saveComponent', () => {
-        setTimeout(() => {
+        queueMicrotask(() => {
           const s = getSchemaFromInstance()
           if (s) syncSchemaToField(s)
-        }, 50)
+        })
       })
 
-      // Populate Reference Field dropdown with form component keys when edit dialog opens
+      /** Main form = saved value pehle, phir builder schema. */
+      const getMainFormComponents = (): unknown[] | null => {
+        const saved = valueRef.current as { components?: unknown[] } | null | undefined
+        if (saved && Array.isArray(saved.components) && saved.components.length > 0) return saved.components
+        const schema = getSchemaFromInstance() as { components?: unknown[] } | null
+        if (Array.isArray(schema?.components)) return schema.components
+        const inst = builderInstanceRef.current as FormioBuilderInstance | null
+        return Array.isArray(inst?.form?.components) ? inst.form.components : null
+      }
+
+      const populateReferenceFieldDropdown = async (editComponent?: Record<string, unknown>) => {
+        const inst = builderInstanceRef.current as FormioBuilderInstance | null
+        if (!inst?.editForm) return
+        const rootComps = getMainFormComponents()
+        if (!rootComps?.length) return
+        const excludeKey = (editComponent?.key as string) || undefined
+        const currentItems = collectFieldKeysForReference(rootComps, excludeKey)
+        const values: SelectOption[] = currentItems.map(({ key, label }) => ({ label: label || key, value: key }))
+        const cache = getFormsCache()
+        const docs = cache?.docs ?? []
+        const selectedIds = collectSelectedFormIds(rootComps)
+        if (docs.length && selectedIds.length) {
+          const { getDocComponents, getReferencableComponents } = await import('../../utils/formio-app-detail-ref-logic')
+          for (const formId of selectedIds) {
+            const doc = docs.find((d) => String(d.id) === String(formId))
+            if (!doc) continue
+            const comps = getDocComponents(doc)
+            const refs = getReferencableComponents(comps)
+            const title = (doc.title as string) || (doc.slug as string) || String(formId)
+            for (const { key: k, label: lbl } of refs) {
+              if (!values.some((v) => v.value === k)) values.push({ label: `${lbl || k} (Form ${title})`, value: k })
+            }
+          }
+        }
+        const refKeyComp = inst.editForm.getComponent('referenceKey')
+        if (refKeyComp?.component) {
+          const comp = refKeyComp.component
+          if (!comp.data) comp.data = {}
+          ;(comp.data as Record<string, unknown>).values = values
+          refKeyComp.updateItems?.()
+        }
+      }
+
       instance.on('editComponent', (component: Record<string, unknown>) => {
         if (component && (component.type === REFERENCE_FIELD_TYPE || component.type === 'schemaReference')) {
-          setTimeout(() => {
+          requestAnimationFrame(() => {
             try {
-              const inst = builderInstanceRef.current as { form?: { components?: unknown[] }; editForm?: { getComponent: (key: string) => { component: Record<string, unknown>; updateItems?: (a?: unknown, b?: unknown) => void } } } | null
-              if (!inst?.form?.components || !inst?.editForm) return
-              const keys = collectFieldKeysForReference(inst.form.components, component.key as string)
-              const values = keys.map((k) => ({ label: k, value: k }))
-              const refKeyComp = inst.editForm.getComponent('referenceKey')
-              if (refKeyComp?.component) {
-                const comp = refKeyComp.component as Record<string, unknown>
-                if (!comp.data) comp.data = {}
-                const data = comp.data as Record<string, unknown>
-                data.values = values
-                if (typeof (refKeyComp as { updateItems?: (a?: unknown, b?: unknown) => void }).updateItems === 'function') {
-                  (refKeyComp as { updateItems: (a?: unknown, b?: unknown) => void }).updateItems()
-                }
+              populateReferenceFieldDropdown(component)
+            } catch (_) {}
+          })
+        }
+        if (component && component.type === APP_DETAIL_REF_TYPE) {
+          requestAnimationFrame(async () => {
+            try {
+              const inst = builderInstanceRef.current as FormioBuilderInstance | null
+              if (!inst?.editForm) return
+              let raw = getFormsCache()
+              if (!raw?.docs?.length) {
+                const Formio = typeof window !== 'undefined' ? (window as Window & { Formio?: { makeRequest?: (m: string, u: string) => Promise<unknown> } }).Formio : undefined
+                const url = getFormsListUrl()
+                const data = Formio?.makeRequest ? await Formio.makeRequest('GET', url) : await fetch(url).then((r) => r.json())
+                raw = data as { docs?: FormDocFromApi[] }
+                setFormsCache(raw)
               }
-            } catch (_) {
-              // ignore
+              const docs = raw?.docs ?? []
+              const values: SelectOption[] = docs.map((d) => {
+                const title = (d.title as string) ?? String(d.id)
+                const slug = typeof d.slug === 'string' ? d.slug : ''
+                return { value: String(d.id), label: slug ? `${title} (${slug})` : title }
+              })
+              const selectComp = inst.editForm.getComponent('selectedFormId')
+              if (selectComp?.component) {
+                const comp = selectComp.component
+                if (!comp.data) comp.data = {}
+                ;(comp.data as Record<string, unknown>).values = values
+                selectComp.updateItems?.()
+              }
+              const editingComp = component as Record<string, unknown>
+              const docIds = new Set(docs.map((d) => String(d.id)))
+              const findFormSelect = (): HTMLSelectElement | null => {
+                const container = document.querySelector('.formio-dialog') ?? document.querySelector('[class*="formio-builder"]') ?? document.body
+                for (const sel of container.querySelectorAll<HTMLSelectElement>('select')) {
+                  if (Array.from(sel.options).some((o) => docIds.has(o.value))) return sel
+                }
+                return null
+              }
+              const onDropdownChange = (id: string | undefined) => {
+                editingComp.selectedFormId = id
+                inst.redraw?.()
+              }
+              inst.editForm.on?.('change', (value: unknown) => {
+                const id = (value as Record<string, unknown>)?.selectedFormId as string | undefined
+                if (id !== undefined) onDropdownChange(id)
+              })
+              requestAnimationFrame(() => {
+                const sel = findFormSelect()
+                if (sel && !(sel as HTMLElement).dataset.appDetailRefListener) {
+                  ;(sel as HTMLElement).dataset.appDetailRefListener = '1'
+                  sel.addEventListener('change', () => onDropdownChange(sel.value || undefined))
+                }
+                inst.redraw?.()
+              })
+            } catch {
+              // edit form not ready
             }
-          }, 100)
+          })
         }
       })
 
-      instance.on('addComponent', () => {
-        setTimeout(() => {
+      const syncAfterChange = () => {
+        queueMicrotask(() => {
           const s = getSchemaFromInstance()
           if (s) syncSchemaToField(s)
-        }, 100)
-      })
-
-      instance.on('removeComponent', () => {
-        setTimeout(() => {
-          const s = getSchemaFromInstance()
-          if (s) syncSchemaToField(s)
-        }, 100)
-      })
-
-      instance.on('updateComponent', () => {
-        setTimeout(() => {
-          const s = getSchemaFromInstance()
-          if (s) syncSchemaToField(s)
-        }, 100)
-      })
+        })
+      }
+      instance.on('addComponent', syncAfterChange)
+      instance.on('removeComponent', syncAfterChange)
+      instance.on('updateComponent', syncAfterChange)
 
       setIsLoading(false)
     } catch (err) {

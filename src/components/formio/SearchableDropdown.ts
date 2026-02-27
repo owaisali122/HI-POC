@@ -116,6 +116,42 @@ export class SearchableDropdownComponent {
           defaultValue: 'Search and select from dynamic options',
         },
         {
+          type: 'checkbox',
+          key: 'clearOnHide', // Form.io ki internal property
+          label: 'Clear Value When Hidden/New Row',
+          input: true,
+          defaultValue: true, // By default ise true rakhein
+          tooltip: 'Clear Value When Hidden/New Row',
+          weight: 160 // Isay list mein niche dikhane ke liye
+        },
+        {
+          type: 'checkbox',
+          key: 'clearOnRefresh',
+          label: 'Clear Value on Refresh',
+          input: true,
+          defaultValue: true,
+          tooltip: 'Clear Value on Refresh',
+          weight: 170
+        },
+        {
+          type: 'checkbox',
+          key: 'hideLabel',
+          label: 'Hide Label',
+          input: true,
+          defaultValue: false,
+          tooltip: 'Hide the label of this component',
+          weight: 10, // Position it near the top
+        },
+        {
+          type: 'checkbox',
+          key: 'tableView',
+          label: 'Table View',
+          input: true,
+          defaultValue: true,
+          tooltip: 'Show this field in table/grid view',
+          weight: 150,
+        },
+        {
           type: 'textfield',
           key: 'data.url',
           label: 'API Endpoint',

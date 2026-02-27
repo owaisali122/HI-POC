@@ -1,8 +1,11 @@
 /**
  * Form.io Custom Component Registry
- * 
- * Registers custom Form.io components for use in both Builder and Renderer
+ *
+ * Registers custom Form.io components for use in both Builder and Renderer.
+ * Forms API URL for App Detail Ref is from central config (see src/config/formio.ts).
  */
+
+import { getFormsListUrl } from '../config/formio'
 
 export async function registerCustomComponents() {
   try {
@@ -976,6 +979,116 @@ export async function registerCustomComponents() {
       }
 
       Formio.Components.setComponent('fieldReference', SchemaReferenceField)
+
+      // Register App Detail Ref (standalone: select form from API; does not inject fieldReference)
+      const { AppDetailRefComponent } = await import('../components/formio/AppDetailRef')
+      const { getFormSchemaForPreview } = await import('./formio-app-detail-ref-logic')
+
+      const AppDetailRef = class extends BaseComponent {
+        static schema(overrides?: any) {
+          return AppDetailRefComponent.schema(overrides)
+        }
+
+        static get builderInfo() {
+          return AppDetailRefComponent.builderInfo
+        }
+
+        static editForm() {
+          return AppDetailRefComponent.editForm()
+        }
+
+        constructor(component: any, options: any, data: any) {
+          super(component, options, data)
+        }
+
+        init() {
+          super.init()
+        }
+
+        render() {
+          return super.render('')
+        }
+
+        attach(element: HTMLElement) {
+          super.attach(element)
+          const selectedId = this.component.selectedFormId
+          const el = this.element as HTMLElement | undefined
+          if (!el) return
+          const win = typeof window !== 'undefined' ? (window as any) : undefined
+          const cache = (win?.__appDetailRefFormsCache ?? win?.top?.__appDetailRefFormsCache) as { docs?: Array<Record<string, unknown>> } | undefined
+          const docs = cache?.docs ?? []
+          const doc = selectedId ? (docs.find((d) => String(d.id) === String(selectedId)) ?? null) : null
+          const schema = getFormSchemaForPreview(doc)
+          if ((this as any)._previewFormInstance?.destroy) {
+            try { (this as any)._previewFormInstance.destroy() } catch (_) {}
+            ;(this as any)._previewFormInstance = undefined
+          }
+          let container = el.querySelector('.app-detail-ref-preview-inner') as HTMLElement | null
+          if (!container || !container.parentNode) {
+            container = document.createElement('div')
+            container.className = 'app-detail-ref-preview-inner'
+            el.appendChild(container)
+          }
+          container.innerHTML = ''
+          const renderForm = (formSchema: { display: string; components: unknown[] }, readOnly: boolean) => {
+            const FormioLib = win?.top?.Formio ?? win?.Formio ?? (Formio as any)
+            let createFormFn = FormioLib?.createForm ?? FormioLib?.GlobalFormio?.createForm
+            if (typeof createFormFn !== 'function') {
+              import('formiojs').then((mod: any) => {
+                const F = mod?.default ?? mod?.Formio
+                const fn = F?.createForm ?? F?.GlobalFormio?.createForm
+                if (typeof fn !== 'function') return
+                if (!container.parentNode) return
+                fn(container, formSchema, { readOnly })
+                  .then((instance: { destroy?: () => void }) => { (this as any)._previewFormInstance = instance })
+                  .catch(() => { container.textContent = 'Could not load.' })
+              }).catch(() => { container.textContent = 'Not available.' })
+              return
+            }
+            createFormFn(container, formSchema, { readOnly })
+              .then((instance: { destroy?: () => void }) => { (this as any)._previewFormInstance = instance })
+              .catch(() => { container.textContent = 'Could not load.' })
+          }
+
+          if (schema.components.length > 0) {
+            renderForm(schema, true)
+            return
+          }
+          if (selectedId) {
+            container.textContent = 'Loading...'
+            const apiUrl = getFormsListUrl()
+            fetch(apiUrl)
+              .then((r) => r.json())
+              .then((raw: { docs?: Array<Record<string, unknown>> }) => {
+                const docs = raw?.docs ?? []
+                if (typeof win !== 'undefined') {
+                  win.__appDetailRefFormsCache = raw
+                  try { win.top.__appDetailRefFormsCache = raw } catch (_) {}
+                }
+                const doc = docs.find((d) => String(d.id) === String(selectedId)) ?? null
+                const fetchedSchema = getFormSchemaForPreview(doc)
+                if (!container.parentNode) return
+                container.innerHTML = ''
+                if (fetchedSchema.components.length > 0) {
+                  renderForm(fetchedSchema, false)
+                } else {
+                  container.textContent = `App Detail Ref → ${selectedId}`
+                }
+              })
+              .catch(() => { container.textContent = `App Detail Ref → ${selectedId}` })
+            return
+          }
+          container.textContent = 'App Detail Ref (select a form)'
+        }
+
+        getValue() {
+          return null
+        }
+
+        setValue() {}
+      }
+
+      Formio.Components.setComponent('appDetailRef', AppDetailRef)
     } else {
       console.warn('Form.io Components API not available')
     }
@@ -1020,6 +1133,7 @@ export function getBuilderConfig(overrides?: Record<string, unknown>) {
           tabnavigationbuttons: true,
           tabprogress: true,
           fieldReference: true,
+          appDetailRef: true,
         },
       },
       advanced: false,
